@@ -1,0 +1,1635 @@
+# -*- coding: utf-8 -*-
+from lxml import html
+import requests
+from bs4 import BeautifulSoup
+
+def format(timelist,namelist,placelist):
+    eventlist = []
+    for i in range(len(namelist)):
+	if timelist[i] == "All Day ":
+	   starttime = "12:00 AM"
+	   endtime = "12:00 PM"
+	else:
+	   times = timelist[i].split(" - ")
+	   if len(times) < 2:
+	       starttime = times[0]
+	       endtime = "12:00 AM"
+	   else:
+	       starttime = times[0]
+	       endtime = times[1]
+	if placelist[i] == "Science Center":
+	   lat = 39.906911
+	   lng = 75.355643
+	elif placelist[i] == "Kohlberg Hall":
+	   lat = 39.905798
+	   lng = 75.354950
+	elif placelist[i] == "LPAC":
+	   lat = 39.906011
+	   lng = 75.354950
+        else:
+	   lat = 39.9068
+	   lng = 75.3556 
+	event = {"id": i, "name": namelist[i], "start_time": starttime, "end_time": endtime, "location": {"lat": lat, "lng": -lng}, "description": ""}
+        eventlist.append(event)
+    return eventlist
+
+
+def locationcleanup(L):
+    html_doc="""
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us" xmlns:fb="http://www.facebook.com/2008/fbml"
+xmlns:og="http://opengraphprotocol.org/schema">
+<head id="head1"><title>
+	Swarthmore College - Location View
+</title><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /><meta id="title1" name="title" /><meta id="description1" name="description" /><link href="Calendar.css" type="text/css" rel="stylesheet" />
+    <script src="jquery.min.js" type="text/javascript"></script>
+    <script src="multiSelect.js" type="text/javascript"></script>
+
+    <script type="text/javascript" src="PopupWindows.js"></script>
+    <script type="text/javascript" src="QuickTip.js"></script>
+    <script type="text/javascript" src="JSFunctions.js"></script>
+
+    <script type="text/javascript">
+        function displayKeywordWindow() {
+            // Bug #2897: I enclosed the url for the keyword window in double quotes so that single quotes in the keywords don't allow for script injection;  We also do the encoding server-side now.
+            var new_window = window.open("KeywordList.aspx?keywords=", 'Category\SubCategory', 'toolbar=0,scrollbars=1,location=0,statusbar=0,menubar=0,resizable=0,width=380,height=228,left=212,top=50');
+            new_window.focus();
+            document.Form1.dlstCategory.selectedIndex = 0;
+        }
+
+        function displaySelectedLocationsWindow() {
+            var new_window = window.open('SelectedLocationList.aspx?locs=&lFormat=Room', 'Category\SubCategory', 'toolbar=0,scrollbars=1,location=0,statusbar=0,menubar=0,resizable=0,width=380,height=228,left=212,top=50');
+            new_window.focus();
+            document.Form1.dlstCategory.selectedIndex = 0;
+        }
+
+        function changeMonth(event) {
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            if ($("#dlstMonth option:selected") != null && $("#dlstMonth option:selected").index() != 0) {
+                __doPostBack('dlstMonth','');
+            }
+            return false;
+        }
+
+        function changeView(event) {
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            if ($("#dlstView option:selected") != null && $("#dlstView option:selected").index() != 0) {
+                __doPostBack('dlstView','');
+            }
+            return false;
+        }
+
+        function changeCategory(event) {
+
+            // Added this for Bug 4949 (TFS) because Firefox was executing this for both change and blur when the popup was opened
+            $("#dlstCategory").off("change blur");
+
+            // Don't postback when either the default option or the multi-select option is clicked
+            if ($("#dlstCategory option:selected").index() == 0 || $("#dlstCategory option:selected").index() == 2) {
+                event.stopImmediatePropagation();
+                event.preventDefault();
+            }
+            
+            displayMultipleCategoryWindow();
+
+            // Bug 4949:  Reactivate the events after we're done so future dropdown actions work
+            $("#dlstCategory").on("change blur", changeCategory);
+            
+        }
+
+        function changeLocation(event) {
+
+            // Added this for Bug 4949 (TFS) because Firefox was executing this for both change and blur when the popup was opened
+            $("#dlstLocation").off("change blur");
+
+            if ($("#dlstLocation option:selected").index() == 0 || $("#dlstLocation option:selected").index() == 2) {
+                event.stopImmediatePropagation();
+                event.preventDefault();
+            }
+            
+            displayMultipleLocationWindow();
+
+            // Bug 4949:  Reactivate the events after we're done so future dropdown actions work
+            $("#dlstLocation").on("change blur", changeLocation);
+            
+        }
+
+        function dropdownKeyAction(event) {
+
+            // Key code
+            var keyCode = event.which || event.keyCode;
+
+	        // Count the number of dropdown items
+	        var num_items = $(this).children("option").length;
+
+	        // Selected index
+	        var curr_idx = $(this).children("option:selected").index();
+
+	        event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+
+	        if(keyCode == 13) { // User hit enter
+		        $(this).trigger('change'); // Do postback, as normal
+	        } else if (keyCode == 38) { // Up Arrow
+		        $(this).prop('selectedIndex', (curr_idx - 1) % num_items);
+	        } else if (keyCode == 40) { // Down Arrow
+		        $(this).prop('selectedIndex', (curr_idx + 1) % num_items);
+	        }
+
+            return false;
+        }
+
+        $(document).ready(function () {
+            $(".expander").css("cursor", "pointer").click(function () {
+                if ($(this).html() == "+") {
+                    $(this).html("-");
+                    $("#" + $(this)[0].id.replace("a", "d")).toggle();
+                }
+                else {
+                    $(this).html("+");
+                    $("#" + $(this)[0].id.replace("a", "d")).toggle();
+                }
+            });
+
+
+            $(".url").hover(
+                   function (e) {
+                       var dataurl = $(this).attr("data-url");
+                       var data = $(this).attr("data");
+                       initQuickTip(dataurl, data, e);
+                   },
+                   function (e) {
+                       removeTimouts();
+                       startexitingQuickTip();
+                   }
+                );
+
+            $("#dlstView").prop('selectedIndex', 0);
+            $("#dlstView").blur();
+
+            $(".openInternetBrowser").click(function (e) {
+                e.stopPropagation();
+                var dataurl = $(this).attr("data-url");
+                openInternetBrowser(dataurl);
+            });
+
+            /*******************************************************************
+             * BUG # 2862: 508 COMPLIANCE DROPDOWN FUNCTIONALITY MODIFICATION  *
+             *******************************************************************/
+
+            $("#linkSubscribe").click(function () {
+                calendarSubscription();
+            });
+
+            $("#dlstCategory").change(changeCategory).keydown(dropdownKeyAction).blur(changeCategory);
+            $("#dlstLocation").change(changeLocation).keydown(dropdownKeyAction).blur(changeLocation);
+            $("#dlstMonth").change(changeMonth).keydown(dropdownKeyAction).blur(changeMonth);
+            $("#dlstView").change(changeView).keydown(dropdownKeyAction).blur(changeView);
+
+            /*******************************************************************/
+
+            /************** From/To Error Message Tweaks ***********************/
+
+            // When the text in the date range boxes changes, hide the server-side error labels so that the client-side ones don't duplicate them
+            $("#txtStartDateSearch").change(function () {
+                $("#lblStartDateError").hide();
+                $("#lblError").hide();
+            });
+
+            // This clears existing errors when the enter key is pressed
+            $("#txtStartDateSearch").keypress(function (event) {
+                if (event.keyCode == 13) {
+                    $("#lblStartDateError").hide();
+                    $("#lblError").hide();
+                }
+            });
+
+            $("#txtEndDateSearch").change(function () {
+                $("#lblEndDateError").hide();
+                $("#lblError").hide();
+            });
+
+            $("#txtEndDateSearch").keypress(function (event) {
+                if (event.keyCode == 13) {
+                    $("#lblEndDateError").hide();
+                    $("#lblError").hide();
+                }
+            });
+
+            // Allow the client-side labels to wrap and remove its color restriction
+            $("[controltovalidate='txtStartDateSearch'],[controltovalidate='txtEndDateSearch']").css("white-space", "normal").css("color", "");
+
+
+            /*******************************************************************/
+
+        });
+
+        function checkBoxSelector(toggle) {
+            $("#cellCBlock input:checkbox").attr("checked", toggle);
+        }
+
+        function openCategorySelector() {
+            var lAutoOpen = "";
+            if (lAutoOpen == "Enable") {
+                var new_window = window.open('CategorySubCategorySelect.aspx', '', 'toolbar=0,scrollbars=1,location=0,statusbar=0,menubar=0,resizable=0,width=380,height=400,left=212,top=50');
+                new_window.focus();
+            }
+        }
+
+
+
+    </script>
+
+    <style type="text/css">
+        .modallayer {
+            background-color: #C0C0C0;
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            width: 100%;
+        }
+
+        .divlayer {
+            position: absolute;
+            display: none;
+        }
+
+        .divlayerborder {
+            border: solid 2px #214380;
+        }
+
+        .divlayerbackground {
+            background-color: #FFFFFF;
+        }
+
+        .divlayerpadding {
+            margin: 5px;
+            border: solid 1px #214380;
+        }
+
+        .divlayerclosebar {
+        }
+
+        .divlayercloseaction {
+            float: right;
+            font-weight: bold;
+            padding-right: 10px;
+        }
+
+        .divlayerallaction {
+            float: left;
+            font-weight: bold;
+            padding-left: 10px;
+        }
+
+        .divlayernoneaction {
+            float: left;
+            font-weight: bold;
+            padding-left: 10px;
+        }
+
+        .divlayersaveaction {
+            float: left;
+            font-weight: bold;
+            padding-left: 10px;
+        }
+        .adx_wcag_header {
+            font-size: 1em;
+            font-weight: normal;
+            color: #000000;
+            line-height: normal;
+            margin: 0px;
+        }
+        .adx_wcag_hidden {
+            position: absolute;
+            left: -10000px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+    </style>
+    <link rel="Stylesheet" type="text/css" href="suggestedcategories.css" /><style type="text/css">#cellCBlock {height:150px;overflow-y:scroll;border-top:2px inset #C0C0C0;border-left:2px inset #C0C0C0;border-bottom:1px solid #C0C0C0;border-right:1px solid #C0C0C0;} .ccontainer {width:100%;} .sccontainer {margin-left:30px;display:none;}</style></head>
+<body>
+    <div style="position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden;"><a href="#skip" title="Skip to content">Skip to content</a></div>
+
+    <!--[if lt IE 9]>
+<script src="swat-theme/html5.js" type="text/javascript"></script>
+<![endif]-->
+<style>
+	@import url("/calendar/Calendar.css");
+	@import url("/calendar/swat-theme/normalize.css");
+	@import url("/calendar/swat-theme/bootstrap/style.css");
+	@import url("/calendar/swat-theme/font-awesome/css/font-awesome.min.css");
+	@import url("/calendar/swat-theme/core_calendar.css");
+</style>
+<div class="sr-only" id="skip-link">
+	<a href="#main-content" class="element-invisible element-focusable">Skip to main content</a>
+</div>
+<div class="container swat-container">
+	<header id="navbar" role="banner" class="navbar navbar-default">
+		<div class="row visible-xs">
+			<!-- MOBILE LOGO -->
+			<div class="col-xs-12 swat-mobile-logo visible-xs">
+			  <h1><a href="http://www.swarthmore.edu/">Swarthmore College</a></h1>
+			</div>
+			<div id="swat-mob-search" class="swat-mobile-search collapse">
+				<form action="http://www.swarthmore.edu/search" class="swat-mob-search" role="search">
+				  <div class="input-group">
+					<label for="swat-mobile-search" class="sr-only">Search Swarthmore</label>
+					<input class="form-control" id="swat-mobile-search" name="keys" type="text" placeholder="Search Swarthmore">
+					<div class="input-group-btn">
+					  <button type="submit" class="btn btn-default">
+						  <span class="sr-only">Submit Search</span>
+						  <span class="fa fa-chevron-right fa-lg"></span>
+					  </button>
+					</div>
+				  </div>
+				</form>
+			</div>
+		</div>
+
+		<div class="row hidden-xs swat-header header">
+			<div class="col-sm-5 col-md-6">
+				<h2 id="site-name"><a href="http://www.swarthmore.edu/">Swarthmore College</a></h2>
+				<h1><a href="http://calendar.swarthmore.edu/calendar/">Campus Calendar</a></h1>
+			</div>
+			<div class="hidden-xs col-sm-7 col-md-6 audience">
+				<ul class="nav nav-pills nav-audience">
+					<li class="menu-43567 first"><a href="http://www.swarthmore.edu/alumni">Alumni</a></li>
+					<li class="menu-43576"><a href="https://secure.swarthmore.edu/dash/">Campus Community</a></li>
+					<li class="menu-43577"><a href="http://www.swarthmore.edu/parents">Parents</a></li>
+					<li class="menu-43584 last"><a href="http://www.swarthmore.edu/visitors">Visitors</a></li>
+				</ul>        
+				<form action="http://www.swarthmore.edu/search" role="search">
+					<div class="input-group">
+						<label for="swat-header-search" class="sr-only">Search Swarthmore</label>
+						<input id="swat-header-search" type="text" class="form-control" name="keys" placeholder="Search Swarthmore">
+						<div class="input-group-btn">
+							<button type="submit" class="btn btn-default btn-search">
+								<span class="sr-only">Submit Search</span>
+								<span class="fa fa-search"></span>
+							</button>
+						</div>
+					</div>
+				</form>
+				<ul class="nav nav-pills nav-utilities">
+					<li class="menu-43571 first"><a href="http://www.swarthmore.edu/a-z-index">A-Z Index</a></li>
+					<li class="menu-43573"><a href="http://calendar.swarthmore.edu/">Calendar</a></li>
+					<li class="menu-43578 last"><a href="http://www.swarthmore.edu/directory">Contacts</a></li>
+				</ul>      
+			</div>
+		</div>
+		
+		<div class="row navbar-default">
+			<div class="swat-mobile-nav-bar xs-12 visible-xs">
+				<div class="col-xs-9">    
+					<button type="button" class="btn button-default navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+						<span class="sr-only">Toggle navigation</span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="menu-text">Menu</span>
+					</button>
+				</div>
+				<div class="col-xs-3">
+				<button type="button" class="btn button-default search-toggle" data-toggle="collapse" data-target=".swat-mobile-search">
+					<span class="sr-only">Toggle search</span>
+					<span class="fa fa-search fa-lg"></span> Search 
+				</button>
+			</div>
+		</div>
+
+		<div class="navbar-collapse collapse">
+			<nav role="navigation">
+				<ul class="menu nav navbar-nav">
+					<li class="first leaf visible-xs swat-utility main-nav-alumni"><a href="http://www.swarthmore.edu/alumni">Alumni<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf visible-xs swat-utility main-nav-campus-community"><a href="https://secure.swarthmore.edu/dash/">Campus Community<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf visible-xs swat-utility main-nav-parents"><a href="http://www.swarthmore.edu/parents">Parents<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="last leaf visible-xs swat-utility main-nav-visitors"><a href="http://www.swarthmore.edu/visitors">Visitors<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="first leaf main-nav-home visible-md visible-lg"><a href="http://www.swarthmore.edu/" title="">Home<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf main-nav-admissions-aid"><a href="http://www.swarthmore.edu/admissions-aid">Admissions &amp; Aid<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf main-nav-academics"><a href="http://www.swarthmore.edu/academics" title="">Academics<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf main-nav-about"><a href="http://www.swarthmore.edu/about">About<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf main-nav-student-life"><a href="http://www.swarthmore.edu/student-life">Student Life<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf main-nav-athletics"><a href="http://athletics.swarthmore.edu" title="">Athletics<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf main-nav-libraries"><a href="http://www.swarthmore.edu/libraries">Libraries<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf active-trail main-nav-news-events"><a href="http://www.swarthmore.edu/news-events" class="active-trail">News &amp; Events<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="last leaf main-nav-giving"><a href="http://www.swarthmore.edu/giving">Giving<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="first leaf visible-xs swat-utility main-nav-a-z-index"><a href="http://www.swarthmore.edu/a-z-index">A-Z Index<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="leaf visible-xs swat-utility main-nav-calendar"><a href="http://calendar.swarthmore.edu/">Calendar<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+					<li class="last leaf visible-xs swat-utility main-nav-contacts"><a href="http://www.swarthmore.edu/directory">Contacts<i class="fa fa-angle-right fa-lg pull-right visible-xs"></i></a></li>
+				</ul>                                              
+			</nav>
+		</div>
+	
+	</header>
+	
+
+	<a id="main-content"></a>
+	<div class="region region-content">
+		<section id="block-system-main" class="block block-system clearfix">
+			<div class="swat-content-bg at-panel panel-display swarthmore-default clearfix">
+				<div class="col-md-9 swat-col-padding inset-wrapper clearfix">
+					<div class=" region region-swarthmore-default-main">
+						<article class="panel-pane pane-node-content">
+
+					<!-- BEGIN ACTIVEDATA CONTENT -->
+		   <form name="Form1" method="post" action="EventList.aspx?fromdate=12%2f3%2f2016&amp;todate=12%2f9%2f2016&amp;display=Week&amp;view=DateTime" onsubmit="javascript:return WebForm_OnSubmit();" id="Form1" enctype="application/x-www-form-urlencoded">
+<div>
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__LASTFOCUS" id="__LASTFOCUS" value="" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="/wEPDwUKLTk2OTk1NDc5NQ8WLB4MTmV4dEltYWdlQWx0BQROZXh0HgxDbGlja1RvUHJpbnQFE0NsaWNrIGhlcmUgdG8gUHJpbnQeEFByZXZpb3VzSW1hZ2VBbHQFCFByZXZpb3VzHhBEYXRlSGVscEZpbGVQYXRoBRlDYWxlbmRhckRhdGVWaWV3SGVscC5hc3B4HhhFdmVudERldGFpbHNIZWxwRmlsZVBhdGgFIUNhbGVuZGFyRXZlbnREZXRhaWxzVmlld0hlbHAuYXNweB4LUlNTSW1hZ2VBbHQFJlN1YnNjcmliZSB0byBSU1MgZmVlZCBvZiBjdXJyZW50IHZpZXcuHgRUeXBlBQZwdWJsaWMeFENhdGVnb3J5SGVscEZpbGVQYXRoBR1DYWxlbmRhckNhdGVnb3J5Vmlld0hlbHAuYXNweB4GVG9EYXRlBQkxMi85LzIwMTYeC0dyaWREaXNwbGF5BQRXZWVrHhJTZWxlY3RXZWVrSW1hZ2VBbHQFDlNlbGVjdCBhIHdlZWsuHgRWaWV3BQhMb2NhdGlvbh4PTGlzdFZpZXdIZWFkaW5nBVA8c3BhbiBjbGFzcz0ibGlzdHRhYmxlaGVhZGVydGV4dCIgc3R5bGU9ImZvbnQtd2VpZ2h0OmJvbGQ7Ij5Mb2NhdGlvbiBWaWV3PC9zcGFuPh4JUGFnZVRpdGxlBR5Td2FydGhtb3JlIENvbGxlZ2UgLSBHcmlkIFZpZXceFExvY2F0aW9uSGVscEZpbGVQYXRoBR1DYWxlbmRhckxvY2F0aW9uVmlld0hlbHAuYXNweB4TU3VtbWFyeUhlbHBGaWxlUGF0aAUcQ2FsZW5kYXJTdW1tYXJ5TGlzdFZpZXcuYXNweB4LRm9yTGFuZ3VhZ2UFA2Zvch4HRW5kVGltZWUeCEZyb21EYXRlBQkxMi8zLzIwMTYeFkV2ZW50c0NhbGVuZGFyTGFuZ3VhZ2UFD0V2ZW50cyBDYWxlbmRhch4OQWxsRGF5TGFuZ3VhZ2UFB0FsbCBEYXkeCVN0YXJ0VGltZWUWAgIBD2QWCgIBD2QWGmYPDxYCHgRUZXh0BQ9EaXNwbGF5IEZvcm1hdDpkZAIBDxAPFgIeB1Zpc2libGVnZBAVBQZTZWxlY3QJR3JpZCBWaWV3DUNhdGVnb3J5IFZpZXcORGF0ZS9UaW1lIFZpZXcMU3VtbWFyeSBWaWV3FQUGU2VsZWN0CUdyaWQgVmlldw1DYXRlZ29yeSBWaWV3DkRhdGUvVGltZSBWaWV3DFN1bW1hcnkgVmlldxQrAwVnZ2dnZxYBZmQCAg8PFgIfFgUOQWxsIENhdGVnb3JpZXNkZAIDDw8WBh4HVG9vbFRpcAUiR28gdG8gYWRtaW5pc3RyYXRpdmUgbG9naW4gc2NyZWVuLh8WBQ1TdWJtaXQgRXZlbnRzHxdnZGQCBA8PFgQeCEltYWdlVXJsBQ5pbWFnZXMvRGF5LmdpZh4NQWx0ZXJuYXRlVGV4dAUhRGlzcGxheSBhbGwgdGhlIGV2ZW50cyBmb3IgdG9kYXkuZGQCBQ8PFgQfGQUPaW1hZ2VzL1dlZWsuZ2lmHxoFLERpc3BsYXkgYWxsIHRoZSBldmVudHMgZm9yIHRoZSBjdXJyZW50IHdlZWsuFgIeBXN0eWxlBV1CT1JERVItVE9QOiAjQzFDMUMxIDFweCBzb2xpZDtCT1JERVItTEVGVDogI0MxQzFDMSAxcHggc29saWQ7Qk9SREVSLVJJR0hUOiAjQzFDMUMxIDFweCBzb2xpZDtkAgYPDxYEHxkFEGltYWdlcy9Nb250aC5naWYfGgUtRGlzcGxheSBhbGwgdGhlIGV2ZW50cyBmb3IgdGhlIGN1cnJlbnQgbW9udGguZGQCBw8PFgQfGQUPaW1hZ2VzL1llYXIuZ2lmHxoFLERpc3BsYXkgYWxsIHRoZSBldmVudHMgZm9yIHRoZSBjdXJyZW50IHllYXIuZGQCCA8WAh8WBUk8c3BhbiBjbGFzcz0iYm9keWNvcHkiIHN0eWxlPSJmb250LXNpemU6MS40ZW07Ij4mbmJzcDsgJm5ic3A7PC9zcGFuPjwvdGQ+ZAIJDw8WCh8ZBRRpbWFnZXMvc3Vic2NyaWJlLmdpZh8YBTFDbGljayB0byBzdWJzY3JpYmUgdG8gdGhlIGN1cnJlbnQgdmlldyBvZiBldmVudHMuHxYFMUNsaWNrIHRvIHN1YnNjcmliZSB0byB0aGUgY3VycmVudCB2aWV3IG9mIGV2ZW50cy4eC05hdmlnYXRlVXJsBQEjHxdnZGQCCg8PFgofGQUTaW1hZ2VzL2Rvd25sb2FkLmdpZh8YBTpDbGljayB0byBkb3dubG9hZCBldmVudHMgc2hvd24gaW4gQ1NWLCBpQ0FMIG9yIFhNTCBmb3JtYXQuHxYFOkNsaWNrIHRvIGRvd25sb2FkIGV2ZW50cyBzaG93biBpbiBDU1YsIGlDQUwgb3IgWE1MIGZvcm1hdC4fHAUBIx8XZxYCHgdvbmNsaWNrBYUBZG93bmxvYWRUeXBlKCdkb3dubG9hZHR5cGUuYXNweD9mcm9tZGF0ZT0xMi8zLzIwMTYmdG9kYXRlPTEyLzkvMjAxNiZkaXNwbGF5PVdlZWsmdmlldz1Mb2NhdGlvbiZ0eXBlPXB1YmxpYyZkb3dubG9hZD1kb3dubG9hZCcsZXZlbnQpO2QCCw8PFggfGQUPaW1hZ2VzL2hlbHAuZ2lmHxgFKkNsaWNrIGZvciBoZWxwIGluIHVzaW5nIGNhbGVuZGFyIGRpc3BsYXlzLh8WBSpDbGljayBmb3IgaGVscCBpbiB1c2luZyBjYWxlbmRhciBkaXNwbGF5cy4fHAUpQ2FsZW5kYXJMb2NhdGlvblZpZXdIZWxwLmFzcHg/dHlwZT1wdWJsaWNkZAIMDw8WCh8ZBRBpbWFnZXMvcHJpbnQuZ2lmHxgFKVByaW50IHRoZSBjb250ZW50cyBvZiB0aGUgY3VycmVudCBzY3JlZW4uHxYFKVByaW50IHRoZSBjb250ZW50cyBvZiB0aGUgY3VycmVudCBzY3JlZW4uHxwFZUV2ZW50TGlzdC5hc3B4P2Zyb21kYXRlPTEyLzMvMjAxNiZ0b2RhdGU9MTIvOS8yMDE2JmRpc3BsYXk9V2VlayZ2aWV3PUxvY2F0aW9uJnR5cGU9cHVibGljJnByaW50PXByaW50HxdnZGQCAg9kFjoCAQ8PFgIfFgUORGlzcGxheSBNb250aDpkZAICDxBkDxYNZgIBAgICAwIEAgUCBgIHAggCCQIKAgsCDBYNEAUGU2VsZWN0BQZTZWxlY3RnEAUHSmFudWFyeQUHSmFudWFyeWcQBQhGZWJydWFyeQUIRmVicnVhcnlnEAUFTWFyY2gFBU1hcmNoZxAFBUFwcmlsBQVBcHJpbGcQBQNNYXkFA01heWcQBQRKdW5lBQRKdW5lZxAFBEp1bHkFBEp1bHlnEAUGQXVndXN0BQZBdWd1c3RnEAUJU2VwdGVtYmVyBQlTZXB0ZW1iZXJnEAUHT2N0b2JlcgUHT2N0b2JlcmcQBQhOb3ZlbWJlcgUITm92ZW1iZXJnEAUIRGVjZW1iZXIFCERlY2VtYmVyZxYBZmQCAw8PFgIfFgUPQWR2YW5jZWQgU2VhcmNoZGQCBA8PFgIfFgUxPHNwYW4gc3R5bGU9ImZvbnQtc2l6ZTowLjhlbSI+KE5ldyBTZWFyY2gpPC9zcGFuPmRkAgUPDxYCHxYFBUZyb206ZGQCBw8PFh4eCUZvbnRfQm9sZGgeDUZvbnRfT3ZlcmxpbmVoHgJUVgUBVh4CVFIFASoeDkZvbnRfU3RyaWtlb3V0aB4ORm9udF9VbmRlcmxpbmVoHgFBBQFGHglGb250X1NpemUoKiJTeXN0ZW0uV2ViLlVJLldlYkNvbnRyb2xzLkZvbnRVbml0AB4BRwUQUkpTLlBvcENhbGVuZGFycx4BUgUBKh4KRm9udF9OYW1lc2QeC0ZvbnRfSXRhbGljaB4CVEUFAUUeBF8hU0ICgPwDHgJUVAUJMTIvMy8yMDE2ZGQCCg8PFgIfFgUDVG86ZGQCDA8PFh4fHmgfH2gfIAUBVh8hBQEqHyJoHyNoHyQFAUYfJSgrBAAfJgUQUkpTLlBvcENhbGVuZGFycx8nBQEqHyhkHyloHyoFAUUfKwKA/AMfLAUJMTIvMy8yMDE2ZGQCEA8PFgIfFgULRGF0ZSBSYW5nZTpkZAIRDxBkDxYQZgIBAgICAwIEAgUCBgIHAggCCQIKAgsCDAINAg4CDxYQEAUGU2VsZWN0BQZTZWxlY3RnEAUFVG9kYXkFBXRvZGF5ZxAFCFRvbW9ycm93BQh0b21vcnJvd2cQBQxDdXJyZW50IFdlZWsFC2N1cnJlbnR3ZWVrZxAFDUN1cnJlbnQgTW9udGgFDGN1cnJlbnRtb250aGcQBQxDdXJyZW50IFllYXIFC2N1cnJlbnR5ZWFyZxAFC05leHQgNyBEYXlzBQVuZXh0N2cQBQxOZXh0IDE0IERheXMFBm5leHQxNGcQBQxOZXh0IDMwIERheXMFBm5leHQzMGcQBQlOZXh0IFdlZWsFCG5leHR3ZWVrZxAFCk5leHQgTW9udGgFCW5leHRtb250aGcQBQxOZXh0IDQ1IERheXMFBm5leHQ0NWcQBQxOZXh0IDYwIERheXMFBm5leHQ2MGcQBQxOZXh0IDkwIERheXMFBm5leHQ5MGcQBQ1OZXh0IDM2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dWRlbnRzBQUzNy04N2cQBQdFeGhpYml0BQQyMy0wZxAFBEZpbG0FBDI0LTBnEAUOR2FybmV0IFdlZWtlbmQFBDcxLTBnEAURR2F0aGVyaW5nL01lZXRpbmcFBDI1LTBnEAUTSG9tZSBQYWdlIEhpZ2hsaWdodAUEMzUtMGcQBQ9IdW1hbiBSZXNvdXJjZXMFBDQxLTBnEAUUSW50ZXJjdWx0dXJhbCBDZW50ZXIFBDE3LTBnEAUKSW50ZXJmYWl0aAUEMTItMGcQBQNJVFMFBDQ2LTBnEAULTGFuZyBDZW50ZXIFBDM5LTBnEAUcTGVjdHVyZS9UYWxrLyBSZWFkaW5nLyBQYW5lbAUEMjYtMGcQBQdMaWJyYXJ5BQQyMS0wZxAFIk1hcnRpbiBMdXRoZXIgS2luZywgSnIuIERheSBFdmVudHMFBDUxLTBnEAUXT2ZmLUNhbXB1cyBTdHVkeSBPZmZpY2UFBDY5LTBnEAUcT2ZmaWNlIG9mIFN0dWRlbnQgRW5nYWdlbWVudAUEODQtMGcQBQtQZXJmb3JtYW5jZQUDNi0wZxAFElByZXNpZGVudCdzIE9mZmljZQUENzctMGcQBQ1QdWJsaWMgRXZlbnRzBQQyOS0wZxAFDVB1YmxpYyBTYWZldHkFBDQyLTBnEAUPU2NvdHQgQXJib3JldHVtBQQxNS0wZxAFHFNlc3F1aWNlbnRlbm5pYWwgQ2VsZWJyYXRpb24FBDc2LTBnEAUIU2lnbWEgWGkFBDcwLTBnEAUXU3ByaW5nIEFydHMgQ2VsZWJyYXRpb24FBDczLTBnEAUOU3R1ZGVudCBFdmVudHMFAzUtMGcQBRdTdHVkZW50IEhlYWx0aCBTZXJ2aWNlcwUENjQtMGcQBQ5TdXN0YWluYWJpbGl0eQUENzUtMGcQBQhUaXRsZSBJWAUENzktMGcQBRZXb21lbidzIFJlc291Y2UgQ2VudGVyBQQ4Mi0wZxAFFVdvcmstTGlmZSBJbml0aWF0aXZlcwUEMzQtMGcQBRFXb3Jrc2hvcC9UcmFpbmluZwUEMjgtMGcQBRpXcml0aW5nIEFzc29jaWF0ZXMgUHJvZ3JhbQUEODUtMGdkZAIjDw8WAh8WBQxMb2NhdGlvbihzKTpkZAIkDxAPZBYCHxsFDHdpZHRoOjE3MnB4Ow8WvgFmAgECAgIDAgQC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Q2VudGVyLCBTZW1pbmFyIFJvb20FCDMtMzQtMTYwZxAFEUxhbmcgQ29uY2VydCBIYWxsBQYzLTgtNDNnEAUQTGFuZyBMb3dlciBMb2JieQUGMy04LTQxZxAFEUxhbmcgUHJlc3NlciBSb29tBQYzLTgtNDJnEAUQTGFuZyBVcHBlciBMb2JieQUGMy04LTQ2ZxAFGExhbmd1YWdlIFJlc291cmNlIENlbnRlcgUHMy02LTIwNWcQBQxMaXN0IEdhbGxlcnkFBzMtOS0xMTNnEAUITFBBQyAzMDEFBjMtOS00N2cQBRdMUEFDIEJveWVyIERhbmNlIFN0dWRpbwUGMy05LTU5ZxAFC0xQQUMgQ2luZW1hBQYzLTktNDhnEAUbTFBBQyBGcmVhciBFbnNlbWJsZSBUaGVhdGVyBQYzLTktNDlnEAUbTFBBQyBGcmVhciBFbnNlbWJsZSBUaGVhdHJlBQczLTktMjAxZxAFEUxQQUMgTGlzdCBHYWxsZXJ5BQYzLTktNTBnEAUKTFBBQyBMb2JieQUGMy05LTUxZxAFGUxQQUMgUGVhcnNvbi1IYWxsIFRoZWF0cmUFBjMtOS01MmcQBRZMUEFDIFRyb3kgRGFuY2UgU3R1ZGlvBQYzLTktNTNnEAULTWFnaWxsIFdhbGsFBzMtMTEtOTZnEAUKTWFydGluIDIxMwUHMy0xMC05MWcQBRhNYXJ5IEx5b24gQmFyYmVjdWUgU3BhY2UFBzMtMTEtMTJnEAUVTWF0aC9TdGF0IENvbW1vbiBSb29tBQgzLTE5LTE2NGcQBRNNY0NhYmUgQ29tcHV0ZXIgTGFiBQczLTE0LTU0ZxAFH01jQ2FiZSBMaWJyYXJ5LCBDcmF0c2xleSBMb3VuZ2UFCDMtMTQtMTQ1ZxAFDE1jQ2FiZSBMb2JieQUHMy0xNC01NWcQBRNNY0NhYmUgUmVhZGluZyBSb29tBQczLTE0LTU2ZxAFFk1jQ2FiZSBWaWRlbyBDbGFzc3Jvb20FBzMtMTQtNTdnEAUmTWVuJ3MgTGFjcm9zc2UgRmllbGQgKFJlZCBMaWdodCBGaWVsZCkFBjMtMS03MmcQBRBNZXBoaXN0b3MgTG91bmdlBQgzLTQzLTE2N2cQBQ9NZXJ0eiBDb3VydHlhcmQFBzMtMTEtMTNnEAUQTWVydHogTGF3biBGaWVs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VmlldykWAh8bBQ1kaXNwbGF5OiBub25lZAIxDw8WAh8WBQYoVmlldykWAh8bBQ1kaXNwbGF5OiBub25lZAIyDw8WAh8WBQtLZXl3b3JkKHMpOmRkAjMPDxYCHxgFOENvbW1hIGRlbGltaXRlZCBsaXN0IG9mIHdvcmRzIHVzZWQgdG8gc2VhcmNoIGZvciBldmVudHMuFgIfGwUMd2lkdGg6MTcycHg7ZAI0DxYCHy8FBihWaWV3KWQCNQ8PFgIfF2hkZAI2Dw8WAh8XaGRkAjcPDxYGHxgFIlNlYXJjaCB0byBuYXJyb3cgdGhlIGV2ZW50cyBzaG93bi4fFgUGU3VibWl0HxdnZGQCAw9kFgYCAQ8WAh8WBeEDPHNwYW4gY2xhc3M9Imxpc3R0YWJsZWhlYWRlcnRleHQiIHN0eWxlPSJmb250LXdlaWdodDpib2xkOyI+TG9jYXRpb24gVmlldzwvc3Bhbj4mbmJzcDsmbmJzcDs8YSBocmVmPSIjIiBvbmNsaWNrPSJyc3NUeXBlKCk7Ij48aW1nIHNyYz0iaW1hZ2VzL3Jzc19uZXcuZ2lmIiBib3JkZXI9IjAiIGFsdD0iU3Vic2NyaWJlIHRvIFJTUyBmZWVkIG9mIGN1cnJlbnQgdmlldy4iLz48L2E+PGlucHV0IHR5cGU9ImhpZGRlbiIgdmFsdWU9IlJTU1N5bmRpY2F0b3IuYXNweD9jYXRlZ29yeT0mbG9jYXRpb249JnR5cGU9TiZzdGFydGluZz0xMi8zLzIwMTYmZW5kaW5nPTEyLzkvMjAxNiZiaW5hcnk9WSZrZXl3b3Jkcz0iIGlkPSJoZG5Sc3NTdGF0aWMiIC8+PGlucHV0IHR5cGU9ImhpZGRlbiIgdmFsdWU9IlJTU1N5bmRpY2F0b3IuYXNweD9jYXRlZ29yeT0mbG9jYXRpb249JnR5cGU9TiZiaW5hcnk9WSZrZXl3b3Jkcz0iIGlkPSJoZG5Sc3NPbmdvaW5nIiAvPmQCAw8WAh8WBVs8c3BhbiBjbGFzcz0ibGlzdHRhYmxlaGVhZGVydGV4dCIgc3R5bGU9ImZvbnQtd2VpZ2h0OmJvbGQ7Ij5EZWNlbWJlciAzIC0gOSwgMjAxNjwvc3Bhbj48YnI+ZAIFDw8WBB8WZR8XaGRkAgcPDxYCHxdoZGQCCA9kFgJmD2QWAmYPZBYCZg8PFgIfFgVyPGEgaHJlZj0iaHR0cDovL3d3dy5hY3RpdmVjYWxlbmRhci5jb20vIj5DYWxlbmRhciBTb2Z0d2FyZSBwb3dlcmVkIGJ5IEFjdGl2ZSBDYWxlbmRhciBhbmQgQWN0aXZlIERhdGEgQ2FsZW5kYXI8L2E+ZGQYAQUeX19Db250cm9sc1JlcXVpcmVQb3N0QmFja0tleV9fFggFB2lidG5EYXkFCGlidG5XZWVrBQlpYnRuTW9udGgFCGlidG5ZZWFyBRJjYmxDdXN0b21GaWVsZF8xJDAFEmNibEN1c3RvbUZpZWxkXzIkMAUSY2JsQ3VzdG9tRmllbGRfMyQwBRJjYmxDdXN0b21GaWVsZF80JDAxXoXFJ4YUwoyUeD0wm2xnSG7DKA==" />
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var theForm = document.forms['Form1'];
+if (!theForm) {
+    theForm = document.Form1;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<script src="/calendar/WebResource.axd?d=_d4O7up7obVkkjZ_s6g4KCccrQ7qb5v1f-r5DjERHRSEFj6cY_RXvToLSZMeOutM_OfOgFJoyR1Cv4F54wvBrfEQtmw1&amp;t=635588444026805809" type="text/javascript"></script>
+
+
+<script src="/calendar/PopCalendar2008/PopCalendarAjaxNet.js" type="text/javascript"></script>
+<script src="/calendar/PopCalendar2008/PopCalendarFunctionsAjaxNet.js" type="text/javascript"></script>
+<script type='text/javascript'>var PopCal_enUS_DaysShort=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];</script>
+<script type='text/javascript'>var PopCal_enUS_MonthsShort=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];var PopCal_enUS_MonthsFull=['January','February','March','April','May','June','July','August','September','October','November','December'];</script>
+<script src="/calendar/WebResource.axd?d=BbRglRwmbnappGoBK_GRsF8exh3lR7NFmVS-BKomS69tRDqjxQf9p22dFjYoyHgeAkc5IFE4I0AmZJ-z2AAwJrvwEs41&amp;t=635588444026805809" type="text/javascript"></script>
+<script type="text/javascript">
+//<![CDATA[
+function WebForm_OnSubmit() {
+if (typeof(ValidatorOnSubmit) == "function" && ValidatorOnSubmit() == false) return false;
+return true;
+}
+//]]>
+</script>
+
+<div>
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="263A0ECC" />
+	<input type="hidden" name="__SCROLLPOSITIONX" id="__SCROLLPOSITIONX" value="0" />
+	<input type="hidden" name="__SCROLLPOSITIONY" id="__SCROLLPOSITIONY" value="80" />
+</div>
+        <div class="eventlistdiv">
+            <input type="hidden" value="Room" id="p_LocationColumnField" name="p_LocationColumnField" />
+            
+            <div id="pnlHideHead" style="width:100%;">
+	
+                <!-- Section 508 Qick Nav Links -->
+                <a href="#search">
+                    <img id="search_link" height="1" alt="Search events." src="images/transparent.gif" style="border: 0px; width: 1px;" /></a>
+                <a href="#events">
+                    <img id="events_link" height="1" alt="View events." src="images/transparent.gif" style="border: 0px; width: 1px;" /></a>
+                <table id="Table3" cellspacing="0" cellpadding="5" width="100%" align="center" border="0">
+                    <tr>
+                        <td style="white-space: nowrap; width: 30%;" align="left" valign="top">
+                            <label for="dlstView" id="lblDisplayFormat" class="bodycopy">Display Format:</label>&nbsp;<select name="dlstView" id="dlstView" class="bodycopy" style="width:123px;">
+		<option selected="selected" value="Select">Select</option>
+		<option value="Grid View">Grid View</option>
+		<option value="Category View">Category View</option>
+		<option value="Date/Time View">Date/Time View</option>
+		<option value="Summary View">Summary View</option>
+
+	</select>
+                            
+                        </td>
+                        <td align="center" style="width: 40%;" valign="top">
+                            <h2 class="adx_wcag_header"><span id="lblCategoryHeading" class="title">All Categories</span></h2>
+                        </td>
+                        <td style="white-space: nowrap; width: 30%;" align="right" valign="top">
+                            <a id="lbtnSubmitEvents" title="Go to administrative login screen." class="bodycopy" href="javascript:__doPostBack('lbtnSubmitEvents','')" style="font-weight:bold;">Submit Events</a></td>
+                    </tr>
+                </table>
+                <table style="padding-right: 5px; padding-left: 5px; padding-top: 5px; border-bottom: solid 1px #c1c1c1;" cellspacing="0" cellpadding="0" width="100%" border="0">
+                    <tr>
+                        <td valign="bottom" style="white-space: nowrap; width: 20%;" align="left">
+                            <table cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td valign="bottom">
+                                        <label style="display: none" for="ibtnDay">Day</label><input type="image" name="ibtnDay" id="ibtnDay" src="images/Day.gif" alt="Display all the events for today." style="height:36px;width:33px;border-width:0px;" /></td>
+                                    <td valign="bottom">
+                                        <label style="display: none" for="ibtnWeek">Week</label><input type="image" name="ibtnWeek" id="ibtnWeek" src="images/Week.gif" alt="Display all the events for the current week." style="height:36px;width:33px;border-width:0px;BORDER-TOP: #C1C1C1 1px solid;BORDER-LEFT: #C1C1C1 1px solid;BORDER-RIGHT: #C1C1C1 1px solid;" /></td>
+                                    <td valign="bottom">
+                                        <label style="display: none" for="ibtnMonth">Month</label><input type="image" name="ibtnMonth" id="ibtnMonth" src="images/Month.gif" alt="Display all the events for the current month." style="height:36px;width:33px;border-width:0px;" /></td>
+                                    <td valign="bottom">
+                                        <label style="display: none" for="ibtnYear">Year</label><input type="image" name="ibtnYear" id="ibtnYear" src="images/Year.gif" alt="Display all the events for the current year." style="height:36px;width:33px;border-width:0px;" /></td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td align="center">
+                            <div style="width: 80%; text-align: center;">
+                                <h1 class="adx_wcag_header"><span class="bodycopy" style="font-size:1.4em;">&nbsp; &nbsp;</span></td></h1>
+                            </div>
+                        </td>
+                        <td valign="bottom" style="white-space: nowrap;" align="right" width="20%">
+                            <a id="linkSubscribe" title="Click to subscribe to the current view of events." href="#"><img title="Click to subscribe to the current view of events." src="images/subscribe.gif" alt="Click to subscribe to the current view of events." style="border-width:0px;" /></a>
+                            <a id="linkDownload" title="Click to download events shown in CSV, iCAL or XML format." onclick="downloadType('downloadtype.aspx?fromdate=12/3/2016&amp;todate=12/9/2016&amp;display=Week&amp;view=Location&amp;type=public&amp;download=download',event);" href="#"><img title="Click to download events shown in CSV, iCAL or XML format." src="images/download.gif" alt="Click to download events shown in CSV, iCAL or XML format." style="border-width:0px;" /></a>
+                            <a id="linkHelp" title="Click for help in using calendar displays." href="CalendarLocationViewHelp.aspx?type=public" target="_blank"><img title="Click for help in using calendar displays." src="images/help.gif" alt="Click for help in using calendar displays." style="border-width:0px;" /></a>
+                            <a id="linkPrint" title="Print the contents of the current screen." href="EventList.aspx?fromdate=12/3/2016&amp;todate=12/9/2016&amp;display=Week&amp;view=Location&amp;type=public&amp;print=print" target="_blank"><img title="Print the contents of the current screen." src="images/print.gif" alt="Print the contents of the current screen." style="border-width:0px;" /></a>
+                        </td>
+                    </tr>
+                </table>
+            
+</div>
+            <table id="PageTable" cellspacing="0" cellpadding="5" width="100%" border="0">
+                <tr>
+                    <td valign="top">
+                        <div id="pnlHideSearch" onkeypress="javascript:return WebForm_FireDefaultButton(event, 'lbtnSearch')">
+	
+                            <table id="Table2" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td colspan="2">
+                                        <div id="CalendarPanel">
+		<table id="CalendarGrid1" cellspacing="0" cellpadding="2" border="0" style="width:100%;border-collapse:collapse;border-collapse:collapse;">
+			<tr>
+				<td></td><td colspan="7"><table cellspacing="0" cellpadding="0" border="0" style="border-width:0px;width:100%;border-collapse:collapse;">
+					<tr>
+						<td align="left"><a id="lbtnADXCalenderPrevious" href="javascript:__doPostBack('lbtnADXCalenderPrevious','')"><img border="0" src="images/largearrow_left_transparent.gif" alt="Previous"></a></td><td class="titleSmallGrid" align="center" style="white-space:nowrap;">December 2016</td><td align="right"><a id="lbtnADXCalenderNext" href="javascript:__doPostBack('lbtnADXCalenderNext','')"><img border="0" src="images/largearrow_right_transparent.gif" alt="Next"></a></td>
+					</tr>
+				</table></td>
+			</tr><tr>
+				<td></td><th class="dayheaderSmallGrid" align="center" scope="col">Su</th><th class="dayheaderSmallGrid" align="center" scope="col">Mo</th><th class="dayheaderSmallGrid" align="center" scope="col">Tu</th><th class="dayheaderSmallGrid" align="center" scope="col">We</th><th class="dayheaderSmallGrid" align="center" scope="col">Th</th><th class="dayheaderSmallGrid" align="center" scope="col">Fr</th><th class="dayheaderSmallGrid" align="center" scope="col">Sa</th>
+			</tr><tr>
+				<td><a id="11/27/2016_12/3/2016" href="javascript:__doPostBack('11/27/2016_12/3/2016','')"><img border="0" src="images/smallarrow_right_transparent.gif" alt="Select a week."></a></td><td class="otherdaySmallGrid" align="center" valign="top" title="Sunday, November 27, 2016"><A href="EventList.aspx?fromdate=11/27/2016&todate=11/27/2016&view=Location&display=Day&type=public">27</A><br></td><td class="otherdaySmallGrid" align="center" valign="top" title="Monday, November 28, 2016"><A href="EventList.aspx?fromdate=11/28/2016&todate=11/28/2016&view=Location&display=Day&type=public">28</A><br></td><td class="otherdaySmallGrid" align="center" valign="top" title="Tuesday, November 29, 2016"><A href="EventList.aspx?fromdate=11/29/2016&todate=11/29/2016&view=Location&display=Day&type=public">29</A><br></td><td class="otherdaySmallGrid" align="center" valign="top" title="Wednesday, November 30, 2016"><A href="EventList.aspx?fromdate=11/30/2016&todate=11/30/2016&view=Location&display=Day&type=public">30</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Thursday, December 01, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/1/2016&todate=12/1/2016&view=Location&display=Day&type=public">1</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Friday, December 02, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/2/2016&todate=12/2/2016&view=Location&display=Day&type=public">2</A><br></td><td class="calendarcellhiliteSmallGrid" align="center" valign="top" title="Saturday, December 03, 2016"><A href="EventList.aspx?fromdate=12/3/2016&todate=12/3/2016&view=Location&display=Day&type=public">3</A><br></td>
+			</tr><tr>
+				<td><a id="12/4/2016_12/10/2016" href="javascript:__doPostBack('12/4/2016_12/10/2016','')"><img border="0" src="images/smallarrow_right_transparent.gif" alt="Select a week."></a></td><td class="calendarcellhiliteSmallGrid" align="center" valign="top" title="Sunday, December 04, 2016"><A href="EventList.aspx?fromdate=12/4/2016&todate=12/4/2016&view=Location&display=Day&type=public">4</A><br></td><td class="calendarcellhiliteSmallGrid" align="center" valign="top" title="Monday, December 05, 2016"><A href="EventList.aspx?fromdate=12/5/2016&todate=12/5/2016&view=Location&display=Day&type=public">5</A><br></td><td class="calendarcellhiliteSmallGrid" align="center" valign="top" title="Tuesday, December 06, 2016"><A href="EventList.aspx?fromdate=12/6/2016&todate=12/6/2016&view=Location&display=Day&type=public">6</A><br></td><td class="calendarcellhiliteSmallGrid" align="center" valign="top" title="Wednesday, December 07, 2016"><A href="EventList.aspx?fromdate=12/7/2016&todate=12/7/2016&view=Location&display=Day&type=public">7</A><br></td><td class="calendarcellhiliteSmallGrid" align="center" valign="top" title="Thursday, December 08, 2016"><A href="EventList.aspx?fromdate=12/8/2016&todate=12/8/2016&view=Location&display=Day&type=public">8</A><br></td><td class="calendarcellhiliteSmallGrid" align="center" valign="top" title="Friday, December 09, 2016"><A href="EventList.aspx?fromdate=12/9/2016&todate=12/9/2016&view=Location&display=Day&type=public">9</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Saturday, December 10, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/10/2016&todate=12/10/2016&view=Location&display=Day&type=public">10</A><br></td>
+			</tr><tr>
+				<td><a id="12/11/2016_12/17/2016" href="javascript:__doPostBack('12/11/2016_12/17/2016','')"><img border="0" src="images/smallarrow_right_transparent.gif" alt="Select a week."></a></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Sunday, December 11, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/11/2016&todate=12/11/2016&view=Location&display=Day&type=public">11</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Monday, December 12, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/12/2016&todate=12/12/2016&view=Location&display=Day&type=public">12</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Tuesday, December 13, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/13/2016&todate=12/13/2016&view=Location&display=Day&type=public">13</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Wednesday, December 14, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/14/2016&todate=12/14/2016&view=Location&display=Day&type=public">14</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Thursday, December 15, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/15/2016&todate=12/15/2016&view=Location&display=Day&type=public">15</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Friday, December 16, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/16/2016&todate=12/16/2016&view=Location&display=Day&type=public">16</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Saturday, December 17, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/17/2016&todate=12/17/2016&view=Location&display=Day&type=public">17</A><br></td>
+			</tr><tr>
+				<td><a id="12/18/2016_12/24/2016" href="javascript:__doPostBack('12/18/2016_12/24/2016','')"><img border="0" src="images/smallarrow_right_transparent.gif" alt="Select a week."></a></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Sunday, December 18, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/18/2016&todate=12/18/2016&view=Location&display=Day&type=public">18</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Monday, December 19, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/19/2016&todate=12/19/2016&view=Location&display=Day&type=public">19</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Tuesday, December 20, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/20/2016&todate=12/20/2016&view=Location&display=Day&type=public">20</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Wednesday, December 21, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/21/2016&todate=12/21/2016&view=Location&display=Day&type=public">21</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Thursday, December 22, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/22/2016&todate=12/22/2016&view=Location&display=Day&type=public">22</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Friday, December 23, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/23/2016&todate=12/23/2016&view=Location&display=Day&type=public">23</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Saturday, December 24, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/24/2016&todate=12/24/2016&view=Location&display=Day&type=public">24</A><br></td>
+			</tr><tr>
+				<td><a id="12/25/2016_12/31/2016" href="javascript:__doPostBack('12/25/2016_12/31/2016','')"><img border="0" src="images/smallarrow_right_transparent.gif" alt="Select a week."></a></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Sunday, December 25, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/25/2016&todate=12/25/2016&view=Location&display=Day&type=public">25</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Monday, December 26, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/26/2016&todate=12/26/2016&view=Location&display=Day&type=public">26</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Tuesday, December 27, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/27/2016&todate=12/27/2016&view=Location&display=Day&type=public">27</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Wednesday, December 28, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/28/2016&todate=12/28/2016&view=Location&display=Day&type=public">28</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Thursday, December 29, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/29/2016&todate=12/29/2016&view=Location&display=Day&type=public">29</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Friday, December 30, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/30/2016&todate=12/30/2016&view=Location&display=Day&type=public">30</A><br></td><td class="calendarcellSmallGrid" align="center" valign="top" title="Saturday, December 31, 2016" onmouseover="this.className='calendarcellhiliteSmallGrid';" onmouseout="this.className='calendarcellSmallGrid';"><A href="EventList.aspx?fromdate=12/31/2016&todate=12/31/2016&view=Location&display=Day&type=public">31</A><br></td>
+			</tr>
+		</table>
+	</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="PADDING-TOP: 5px; white-space: nowrap;" colspan="2">
+                                        <table cellspacing="0" cellpadding="0" width="100%" border="0">
+                                            <tr>
+                                                <td>
+                                                    <label for="dlstMonth" id="lblDisplayMonth" class="bodycopy">Display Month:</label></td>
+                                                <td align="right">
+                                                    <select name="dlstMonth" id="dlstMonth" class="bodycopy">
+		<option selected="selected" value="Select">Select</option>
+		<option value="January">January</option>
+		<option value="February">February</option>
+		<option value="March">March</option>
+		<option value="April">April</option>
+		<option value="May">May</option>
+		<option value="June">June</option>
+		<option value="July">July</option>
+		<option value="August">August</option>
+		<option value="September">September</option>
+		<option value="October">October</option>
+		<option value="November">November</option>
+		<option value="December">December</option>
+
+	</select></td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2">
+                                        <hr width="100%" style="color: Black;" size="1" />
+                                        <a id="search"></a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="white-space: nowrap;" colspan="2">
+                                        <table cellspacing="0" cellpadding="0" width="100%" border="0">
+                                            <tr>
+                                                <td>
+                                                    <h3 class="adx_wcag_header"><span id="lblAdvancedSearch" class="bodycopy" style="font-weight:bold;">Advanced Search</span></h3></td>
+                                                <td align="right">
+                                                    <a id="lbtnNewSearch" class="bodycopy" href="javascript:__doPostBack('lbtnNewSearch','')"><span style="font-size:0.8em">(New Search)</span></a></td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                
+                                <tr>
+                                    <td style="white-space: nowrap;">
+                                        <label for="dlstDateRange" id="lblDateRange" class="bodycopy">Date Range:</label></td>
+                                    <td style="white-space: nowrap;">
+                                        <select name="dlstDateRange" id="dlstDateRange" class="bodycopy" style="width:10em;">
+		<option value="Select">Select</option>
+		<option value="today">Today</option>
+		<option value="tomorrow">Tomorrow</option>
+		<option value="currentweek">Current Week</option>
+		<option value="currentmonth">Current Month</option>
+		<option value="currentyear">Current Year</option>
+		<option selected="selected" value="next7">Next 7 Days</option>
+		<option value="next14">Next 14 Days</option>
+		<option value="next30">Next 30 Days</option>
+		<option value="nextweek">Next Week</option>
+		<option value="nextmonth">Next Month</option>
+		<option value="next45">Next 45 Days</option>
+		<option value="next60">Next 60 Days</option>
+		<option value="next90">Next 90 Days</option>
+		<option value="next365">Next 365 Days</option>
+		<option value="nextyear">Next Year</option>
+
+	</select></td>
+                                </tr>
+                                <tr>
+                                    <td style="white-space: nowrap;">
+                                        <label for="dlstTimeRange" id="lblTimeRange" class="bodycopy">Time Range:</label></td>
+                                    <td style="white-space: nowrap;">
+                                        <select name="dlstTimeRange" id="dlstTimeRange" class="bodycopy" style="width:10em;">
+		<option selected="selected" value="Select">Select</option>
+		<option value="12:00:01 AM,5:00 AM">Midnight – 5 am</option>
+		<option value="5:00 AM,12:00 PM">5 am – Noon</option>
+		<option value="12:00 PM,5:00 PM">Noon to 5 pm</option>
+		<option value="5:00 PM,11:59:59 PM">5pm - Midnight</option>
+
+	</select></td>
+                                </tr>
+                                
+                                <tr>
+                                    <td style="PADDING-TOP: 2px; white-space: nowrap;" colspan="2">
+                                        <table cellspacing="0" cellpadding="0" width="100%" border="0">
+                                            <tr>
+                                                <td>
+                                                    <label for="dlstCategory" id="lblCategorys" class="bodycopy">Category(s):</label></td>
+                                                <td align="right"></td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                
+                                <tr>
+                                    <td style="white-space: nowrap;" colspan="2">
+                                        <select name="dlstCategory" id="dlstCategory" class="bodycopy" onclick="openCategorySelector();" style="width:172px;width:172px;">
+		<option value="Select">Select</option>
+		<option value="Select All">Select All</option>
+		<option value="Select Multiple">Select Multiple</option>
+		<option value="2-0">Academic Calendar</option>
+		<option value="7-0">Academic Departments &amp; Programs</option>
+		<option value="7-1">&#160;&#160;&#160;Art</option>
+		<option value="7-2">&#160;&#160;&#160;Asian Studies</option>
+		<option value="7-3">&#160;&#160;&#160;Biology</option>
+		<option value="7-4">&#160;&#160;&#160;Black Studies</option>
+		<option value="7-5">&#160;&#160;&#160;Chemistry and Biochemistry</option>
+		<option value="7-6">&#160;&#160;&#160;Classics</option>
+		<option value="7-7">&#160;&#160;&#160;Cognitive Science</option>
+		<option value="7-8">&#160;&#160;&#160;Comparative Literature</option>
+		<option value="7-9">&#160;&#160;&#160;Computer Science</option>
+		<option value="7-85">&#160;&#160;&#160;Dance</option>
+		<option value="7-10">&#160;&#160;&#160;Economics</option>
+		<option value="7-11">&#160;&#160;&#160;Educational Studies</option>
+		<option value="7-12">&#160;&#160;&#160;Engineering</option>
+		<option value="7-13">&#160;&#160;&#160;English Literature</option>
+		<option value="7-14">&#160;&#160;&#160;Environmental Studies</option>
+		<option value="7-15">&#160;&#160;&#160;Film and Media Studies</option>
+		<option value="7-34">&#160;&#160;&#160;Gender &amp; Sexuality Studies</option>
+		<option value="7-16">&#160;&#160;&#160;German Studies</option>
+		<option value="7-17">&#160;&#160;&#160;History</option>
+		<option value="7-18">&#160;&#160;&#160;Interpretation Theory</option>
+		<option value="7-60">&#160;&#160;&#160;Islamic Studies</option>
+		<option value="7-19">&#160;&#160;&#160;Latin American Studies</option>
+		<option value="7-20">&#160;&#160;&#160;Linguistics</option>
+		<option value="7-21">&#160;&#160;&#160;Mathematics and Statistics</option>
+		<option value="7-22">&#160;&#160;&#160;Medieval Studies</option>
+		<option value="7-23">&#160;&#160;&#160;Modern Languages and Literatures</option>
+		<option value="7-24">&#160;&#160;&#160;Music</option>
+		<option value="7-25">&#160;&#160;&#160;Peace and Conflict Studies</option>
+		<option value="7-26">&#160;&#160;&#160;Philosophy</option>
+		<option value="7-27">&#160;&#160;&#160;Physics and Astronomy</option>
+		<option value="7-28">&#160;&#160;&#160;Political Science</option>
+		<option value="7-29">&#160;&#160;&#160;Psychology</option>
+		<option value="7-30">&#160;&#160;&#160;Public Policy</option>
+		<option value="7-31">&#160;&#160;&#160;Religion</option>
+		<option value="7-32">&#160;&#160;&#160;Sociology and Anthropology</option>
+		<option value="7-86">&#160;&#160;&#160;Spanish</option>
+		<option value="7-33">&#160;&#160;&#160;Theater</option>
+		<option value="30-0">Arts &amp; Culture</option>
+		<option value="3-0">Athletics</option>
+		<option value="3-46">&#160;&#160;&#160;Club Sports</option>
+		<option value="33-0">Aydelotte Foundation</option>
+		<option value="16-0">Black Cultural Center</option>
+		<option value="9-0">Career Services</option>
+		<option value="81-0">Center for Innovation &amp; Leadership</option>
+		<option value="80-0">Chester Children's Chorus</option>
+		<option value="40-0">Concert</option>
+		<option value="22-0">Conference/Symposium</option>
+		<option value="20-0">Cooper Series</option>
+		<option value="37-0">Diversity</option>
+		<option value="37-88">&#160;&#160;&#160;First in Family</option>
+		<option value="37-87">&#160;&#160;&#160;International Students</option>
+		<option value="23-0">Exhibit</option>
+		<option value="24-0">Film</option>
+		<option value="71-0">Garnet Weekend</option>
+		<option value="25-0">Gathering/Meeting</option>
+		<option value="35-0">Home Page Highlight</option>
+		<option value="41-0">Human Resources</option>
+		<option value="17-0">Intercultural Center</option>
+		<option value="12-0">Interfaith</option>
+		<option value="46-0">ITS</option>
+		<option value="39-0">Lang Center</option>
+		<option value="26-0">Lecture/Talk/ Reading/ Panel</option>
+		<option value="21-0">Library</option>
+		<option value="51-0">Martin Luther King, Jr. Day Events</option>
+		<option value="69-0">Off-Campus Study Office</option>
+		<option value="84-0">Office of Student Engagement</option>
+		<option value="6-0">Performance</option>
+		<option value="77-0">President's Office</option>
+		<option value="29-0">Public Events</option>
+		<option value="42-0">Public Safety</option>
+		<option value="15-0">Scott Arboretum</option>
+		<option value="76-0">Sesquicentennial Celebration</option>
+		<option value="70-0">Sigma Xi</option>
+		<option value="73-0">Spring Arts Celebration</option>
+		<option value="5-0">Student Events</option>
+		<option value="64-0">Student Health Services</option>
+		<option value="75-0">Sustainability</option>
+		<option value="79-0">Title IX</option>
+		<option value="82-0">Women's Resouce Center</option>
+		<option value="34-0">Work-Life Initiatives</option>
+		<option value="28-0">Workshop/Training</option>
+		<option value="85-0">Writing Associates Program</option>
+
+	</select><br />
+                                        </td>
+                                </tr>
+                                
+                                <tr>
+                                    <td style="PADDING-TOP: 2px; white-space: nowrap;" colspan="2">
+                                        <table cellspacing="0" cellpadding="0" width="100%" border="0">
+                                            <tr>
+                                                <td>
+                                                    <label for="dlstLocation" id="lblLocations" class="bodycopy">Location(s):</label></td>
+                                                <td align="right"></td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="white-space: nowrap;" colspan="2">
+                                        <select name="dlstLocation" id="dlstLocation" class="bodycopy" style="width:172px;width:172px;">
+		<option value="Select">Select</option>
+		<option value="Select All">Select All</option>
+		<option value="Select Multiple">Select Multiple</option>
+		<option value="3-13-197">160</option>
+		<option value="3-77-209">1st Floor Lounge</option>
+		<option value="3-39-204">220</option>
+		<option value="3-14-212">306</option>
+		<option value="3-13-163">Admissions Office</option>
+		<option value="3-11-4">Alice Paul Hall Grill Area</option>
+		<option value="3-37-146">Alice Paul Hall Lounge</option>
+		<option value="5-24-147">Away Game</option>
+		<option value="3-1-71">Baseball Field</option>
+		<option value="3-25-126">Beardsley Hall, Room 316</option>
+		<option value="3-25-191">Beardsley Media Center</option>
+		<option value="3-2-171">Bond Hall, Lodge 6</option>
+		<option value="3-2-125">Bond Hall, Upstairs</option>
+		<option value="3-2-1">Bond Memorial Hall</option>
+		<option value="3-11-6">Bond Quad</option>
+		<option value="3-11-7">Cherry Border Lawn</option>
+		<option value="3-9-200">Cinema</option>
+		<option value="3-3-3">Clothier Alcove</option>
+		<option value="3-1-80">Clothier Field Stadium</option>
+		<option value="3-11-8">Clothier Patio</option>
+		<option value="3-6-177">Coffee Bar</option>
+		<option value="3-26-139">Community Garden</option>
+		<option value="3-4-83">Cornell 104</option>
+		<option value="3-4-84">Cornell 105</option>
+		<option value="3-11-9">Cosby Courtyard</option>
+		<option value="3-11-92">Crum Meadow</option>
+		<option value="3-1-114">Cunningham Field</option>
+		<option value="3-1-169">Cunningham/College Avenue Courts</option>
+		<option value="3-11-93">Delmuth-Rath Fieldhouse area</option>
+		<option value="3-29-206">Dining Room 208</option>
+		<option value="3-29-207">Dining Room 209</option>
+		<option value="3-19-123">Eldridge Commons</option>
+		<option value="3-11-94">Elmore Outdoor Classroom</option>
+		<option value="3-1-131">Faulkner Tennis Courts</option>
+		<option value="3-11-10">Fragrance Garden</option>
+		<option value="3-30-127">Friends Meeting House, Whittier Room</option>
+		<option value="3-11-15">Front Lawn of Papazian</option>
+		<option value="3-11-17">Front Lawn of Pearson</option>
+		<option value="3-10-129">Greenhouse</option>
+		<option value="3-19-134">Greenhouse</option>
+		<option value="3-20-105">Gymnasium</option>
+		<option value="3-11-11">Harry Wood Garden</option>
+		<option value="3-5-26">Hicks 211</option>
+		<option value="3-5-199">Hicks 303</option>
+		<option value="3-5-27">Hicks Mural Room 312</option>
+		<option value="3-25-210">ITS Help Desk</option>
+		<option value="3-29-141">Kitao Student Art Gallery</option>
+		<option value="3-6-178">Kohlberg 111</option>
+		<option value="3-6-28">Kohlberg 114</option>
+		<option value="3-6-29">Kohlberg 115</option>
+		<option value="3-6-30">Kohlberg 116</option>
+		<option value="3-6-31">Kohlberg 201</option>
+		<option value="3-6-32">Kohlberg 202</option>
+		<option value="3-6-33">Kohlberg 226</option>
+		<option value="3-6-34">Kohlberg 228</option>
+		<option value="3-6-35">Kohlberg 230</option>
+		<option value="3-6-36">Kohlberg 302</option>
+		<option value="3-6-136">Kohlberg 318</option>
+		<option value="3-6-37">Kohlberg 328</option>
+		<option value="3-6-38">Kohlberg 330</option>
+		<option value="3-6-39">Kohlberg 334</option>
+		<option value="3-6-137">Kohlberg Commons</option>
+		<option value="3-11-95">Kohlberg Quad</option>
+		<option value="3-6-40">Kohlberg, Scheuer Room</option>
+		<option value="3-6-161">Kohlberg, Third Floor</option>
+		<option value="3-7-85">Lamb Miller Classroom 14</option>
+		<option value="3-7-86">Lamb Miller East</option>
+		<option value="3-7-87">Lamb Miller Fieldhouse Lobby</option>
+		<option value="3-7-88">Lamb Miller Indoor Track</option>
+		<option value="3-7-89">Lamb Miller West</option>
+		<option value="3-7-90">Lamb Miller Wrestling Room</option>
+		<option value="3-7-128">Lamb-Miller Defense Room</option>
+		<option value="3-8-44">Lang 407</option>
+		<option value="3-8-45">Lang 415</option>
+		<option value="3-34-195">Lang Center</option>
+		<option value="3-34-159">Lang Center, Keith Room</option>
+		<option value="3-34-160">Lang Center, Seminar Room</option>
+		<option value="3-8-43">Lang Concert Hall</option>
+		<option value="3-8-41">Lang Lower Lobby</option>
+		<option value="3-8-42">Lang Presser Room</option>
+		<option value="3-8-46">Lang Upper Lobby</option>
+		<option value="3-6-205">Language Resource Center</option>
+		<option value="3-9-113">List Gallery</option>
+		<option value="3-9-47">LPAC 301</option>
+		<option value="3-9-59">LPAC Boyer Dance Studio</option>
+		<option value="3-9-48">LPAC Cinema</option>
+		<option value="3-9-49">LPAC Frear Ensemble Theater</option>
+		<option value="3-9-201">LPAC Frear Ensemble Theatre</option>
+		<option value="3-9-50">LPAC List Gallery</option>
+		<option value="3-9-51">LPAC Lobby</option>
+		<option value="3-9-52">LPAC Pearson-Hall Theatre</option>
+		<option value="3-9-53">LPAC Troy Dance Studio</option>
+		<option value="3-11-96">Magill Walk</option>
+		<option value="3-10-91">Martin 213</option>
+		<option value="3-11-12">Mary Lyon Barbecue Space</option>
+		<option value="3-19-164">Math/Stat Common Room</option>
+		<option value="3-14-54">McCabe Computer Lab</option>
+		<option value="3-14-145">McCabe Library, Cratsley Lounge</option>
+		<option value="3-14-55">McCabe Lobby</option>
+		<option value="3-14-56">McCabe Reading Room</option>
+		<option value="3-14-57">McCabe Video Classroom</option>
+		<option value="3-1-72">Men's Lacrosse Field (Red Light Field)</option>
+		<option value="3-43-167">Mephistos Lounge</option>
+		<option value="3-11-13">Mertz Courtyard</option>
+		<option value="3-1-73">Mertz Lawn Field</option>
+		<option value="3-1-132">Mullan Tennis Center</option>
+		<option value="3-11-14">Nason Garden</option>
+		<option value="3-67-180">Off-Campus Study Office</option>
+		<option value="3-1-74">Outdoor Track</option>
+		<option value="3-3-138">Paces</option>
+		<option value="3-40-154">Papazian 319</option>
+		<option value="3-40-155">Papazian 324</option>
+		<option value="3-40-156">Papazian 325</option>
+		<option value="3-1-75">Parking Meter Field</option>
+		<option value="3-13-168">Parrish 118</option>
+		<option value="3-13-120">Parrish 135</option>
+		<option value="3-13-121">Parrish 157</option>
+		<option value="3-13-119">Parrish 159</option>
+		<option value="3-13-122">Parrish 165</option>
+		<option value="3-13-188">Parrish 287 - Admissions Commons</option>
+		<option value="3-11-118">Parrish Beach</option>
+		<option value="3-13-175">Parrish Beach</option>
+		<option value="3-13-103">Parrish East Parlor</option>
+		<option value="3-11-16">Parrish Lawn</option>
+		<option value="3-11-97">Parrish Porch</option>
+		<option value="3-13-104">Parrish West Parlor</option>
+		<option value="3-13-162">Parrish, Rose Garden Circle</option>
+		<option value="3-39-153">Pearson 113</option>
+		<option value="3-1-76">Practice Football Field</option>
+		<option value="3-11-18">Rose Garden</option>
+		<option value="3-1-77">Rugby Field</option>
+		<option value="3-19-194">Science Center  L32</option>
+		<option value="3-19-61">Science Center 101 - Chang Hou Hall</option>
+		<option value="3-19-62">Science Center 102</option>
+		<option value="3-19-179">Science Center 104</option>
+		<option value="3-19-173">Science Center 105</option>
+		<option value="3-19-112">Science Center 110</option>
+		<option value="3-19-63">Science Center 128</option>
+		<option value="3-19-117">Science Center 145</option>
+		<option value="3-19-64">Science Center 158</option>
+		<option value="3-19-189">Science Center 161</option>
+		<option value="3-19-65">Science Center 181</option>
+		<option value="3-19-66">Science Center 183</option>
+		<option value="3-19-67">Science Center 199 - Cunniff Hall</option>
+		<option value="3-19-165">Science Center 256</option>
+		<option value="3-19-68">Science Center 264</option>
+		<option value="3-19-69">Science Center L26</option>
+		<option value="3-11-98">Science Center Patio</option>
+		<option value="3-19-176">Science Center Peter van de Kamp Observatory</option>
+		<option value="3-19-203">Science Center Quad</option>
+		<option value="3-11-99">Science Center Terrace</option>
+		<option value="3-11-19">Science Ctr Breezeway</option>
+		<option value="3-11-5">Scott Amphitheater</option>
+		<option value="3-11-202">Scott Amphitheater
+</option>
+		<option value="3-26-116">Scott Arboretum Offices</option>
+		<option value="3-13-142">Shane Lounge</option>
+		<option value="3-11-20">Sharples Lawn</option>
+		<option value="3-11-21">Sharples Patio</option>
+		<option value="3-29-144">Sharples Patio</option>
+		<option value="3-29-150">Sharples Room 4</option>
+		<option value="3-1-78">Soccer Field</option>
+		<option value="3-1-79">Softball Field</option>
+		<option value="3-11-22">Sproul Terrace</option>
+		<option value="3-1-140">Stadium Field</option>
+		<option value="3-1-124">Tarble Pavillion - Gymnasium</option>
+		<option value="3-3-2">Tarble-in-Clothier All-Campus Space</option>
+		<option value="3-11-115">Terry Shane Teaching Garden</option>
+		<option value="3-76-208">The Matchbox - Tarble Commons</option>
+		<option value="3-90-211">The Swarthmore Campus and Community Store</option>
+		<option value="3-21-198">Trotter 115</option>
+		<option value="3-21-190">Trotter 120</option>
+		<option value="3-21-106">Trotter 201</option>
+		<option value="3-21-107">Trotter 203</option>
+		<option value="3-21-187">Trotter 215</option>
+		<option value="3-21-108">Trotter 301</option>
+		<option value="3-21-109">Trotter 303</option>
+		<option value="3-21-110">Trotter 315</option>
+		<option value="3-11-23">Trotter Lawn</option>
+		<option value="3-1-192">Turf Field</option>
+		<option value="3-1-133">Ware Pool</option>
+		<option value="3-22-166">Wharton C Basement</option>
+		<option value="3-22-111">Wharton Courtyard</option>
+		<option value="3-11-24">Wharton Courtyard</option>
+		<option value="3-11-25">Willets BBQ Area</option>
+		<option value="3-68-181">Wister Center, Gillespie Room</option>
+		<option value="3-1-82">Women's Lacrosse &amp; Field Hockey Practice Field</option>
+		<option value="3-1-81">Women's Lacrosse and Field Hockey Game Field</option>
+
+	</select><br />
+                                        
+                                    </td>
+                                </tr>
+                                
+                                <tr>
+                                    <td style="PADDING-TOP: 2px; white-space: nowrap;" colspan="2">
+                                        
+                                        <a id="lbtnSearch" title="Search to narrow the events shown." class="bodycopy" href="javascript:__doPostBack('lbtnSearch','')" style="font-weight:bold;">Submit</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        
+</div>
+                    </td>
+                    <td valign="top" align="left" width="100%"><a id="events"></a><a name="skip"></a>
+                        <div id="pnlListviewHeading">
+	
+                            <table cellspacing="0" cellpadding="1" width="100%" border="0">
+                                <tr>
+                                    <td>
+                                        <h2 class="adx_wcag_header"><span class="listtableheadertext" style="font-weight:bold;">Location View</span>&nbsp;&nbsp;<a href="#" onclick="rssType();"><img src="images/rss_new.gif" border="0" alt="Subscribe to RSS feed of current view."/></a><input type="hidden" value="RSSSyndicator.aspx?category=&location=&type=N&starting=12/3/2016&ending=12/9/2016&binary=Y&keywords=" id="hdnRssStatic" /><input type="hidden" value="RSSSyndicator.aspx?category=&location=&type=N&binary=Y&keywords=" id="hdnRssOngoing" /></h2>
+                                    </td>
+                                    <td align="right">
+                                        <h2 class="adx_wcag_header"><span class="listtableheadertext" style="font-weight:bold;">December 3 - 9, 2016</span><br></h2>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        </td>
+                                </tr>
+                            </table>
+                        
+</div>
+                        <div id="divTableEventsHighlighted"></div>
+                        <div id="divTableEvents"><table id="tblEvents" cellspacing="1" cellpadding="1" border="0" style="width:100%;">
+	<tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Clothier - (Tarble-in-Clothier All-Campus Space)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Wednesday, December 07, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>4:30 PM - 5:30 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15308&view=EventDetails&information_id=41705" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41705" >Collection - a Celebration of Light</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Kohlberg - (Kohlberg 228)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Tuesday, December 06, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>4:30 PM - 6:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15332&view=EventDetails&information_id=41753" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41753" >Law as a Tool for Social Justice and Conflict Resolution</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Kohlberg - (Kohlberg, Scheuer Room)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Monday, December 05, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:00 PM - 1:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15314&view=EventDetails&information_id=41717" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41717" >Food for Thought - Compensation Essentials</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>5:00 PM - 7:30 PM </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15151&view=EventDetails&information_id=41319" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41319" >Trans* Bodies and Power in the Age of Transgenderism</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Tuesday, December 06, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>5:00 PM - 6:30 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15298&view=EventDetails&information_id=41685" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41685" >Reading by Antje Rávic Strubel</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Lamb-Miller Fieldhouse</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Friday, December 09, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:00 PM - 1:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15211&view=EventDetails&information_id=41500" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41500" >Weight Watchers @ Work</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Lang Music Building - (Lang Concert Hall)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Saturday, December 03, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>3:00 PM - 5:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14836&view=EventDetails&information_id=40568" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40568" >Fetter Chamber Music Concert #3</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Sunday, December 04, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>3:00 PM - 4:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14830&view=EventDetails&information_id=40556" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40556" >Gamelan Semara Santi</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>7:30 PM - 9:00 PM </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14842&view=EventDetails&information_id=40580" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40580" >Swarthmore College Chorus and Garnet Singers</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Monday, December 05, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:30 PM - 1:30 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14846&view=EventDetails&information_id=40588" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40588" >Midday Monday Concert: Fetter Chamber Music Groups</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Tuesday, December 06, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>9:30 AM - 11:30 AM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15064&view=EventDetails&information_id=41101" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41101" >Winter Gathering</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Friday, December 09, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>7:30 PM - 9:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15068&view=EventDetails&information_id=41109" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41109" >Chester Children's Chorus Holiday Concert #1</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Lang Music Building</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Saturday, December 03, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>3:00 PM - 5:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14836&view=EventDetails&information_id=40568" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40568" >Fetter Chamber Music Concert #3</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Friday, December 09, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>7:30 PM - 9:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15068&view=EventDetails&information_id=41109" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41109" >Chester Children's Chorus Holiday Concert #1</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Lang Performing Arts Center - (Cinema)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Monday, December 05, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>5:00 PM - 7:30 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15151&view=EventDetails&information_id=41319" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41319" >Trans* Bodies and Power in the Age of Transgenderism</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Lang Performing Arts Center - (List Gallery)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Saturday, December 03, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:00 PM - 5:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15178&view=EventDetails&information_id=41422" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41422" >Lois Dodd: Windows and Reflections</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Sunday, December 04, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:00 PM - 5:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15178&view=EventDetails&information_id=41423" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41423" >Lois Dodd: Windows and Reflections</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Tuesday, December 06, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:00 PM - 5:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15178&view=EventDetails&information_id=41424" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41424" >Lois Dodd: Windows and Reflections</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Wednesday, December 07, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:00 PM - 5:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15178&view=EventDetails&information_id=41425" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41425" >Lois Dodd: Windows and Reflections</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Thursday, December 08, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:00 PM - 5:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15178&view=EventDetails&information_id=41426" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41426" >Lois Dodd: Windows and Reflections</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Friday, December 09, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:00 PM - 5:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15178&view=EventDetails&information_id=41427" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41427" >Lois Dodd: Windows and Reflections</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Lang Performing Arts Center - (LPAC Frear Ensemble Theater)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Saturday, December 03, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>2:00 PM - 4:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15052&view=EventDetails&information_id=41075" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41075" >Senior Company 2017: THE TOTALITARIANS by Peter Sinn Nachtrieb</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>8:00 PM - 10:00 PM </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15052&view=EventDetails&information_id=41076" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41076" >Senior Company 2017: THE TOTALITARIANS by Peter Sinn Nachtrieb</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Sunday, December 04, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>2:00 PM - 4:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15053&view=EventDetails&information_id=41078" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41078" >Senior Company 2017: THE TOTALITARIANS by Peter Sinn Nachtrieb</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Wednesday, December 07, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>8:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15054&view=EventDetails&information_id=41080" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41080" >A Night of Scenes: Directing I Workshop (Thea 035) with Lighting Design (Thea 004B)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Thursday, December 08, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>8:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15055&view=EventDetails&information_id=41082" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41082" >A Night of Scenes: Directing I Workshop (Thea 035) & Lighting Design (Thea 004B)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Lang Performing Arts Center - (LPAC Pearson-Hall Theatre)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Saturday, December 03, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>8:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15043&view=EventDetails&information_id=41056" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41056" >Fall 2016 Dance Concert</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Lang Performing Arts Center</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Saturday, December 03, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>8:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15043&view=EventDetails&information_id=41056" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41056" >Fall 2016 Dance Concert</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>McCabe Library - (McCabe Lobby)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Saturday, December 03, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15175&view=EventDetails&information_id=41391" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41391" >Exhibition – Literary Aviary: Birds on Paper (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Sunday, December 04, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15175&view=EventDetails&information_id=41391" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41391" >Exhibition – Literary Aviary: Birds on Paper (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Monday, December 05, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15175&view=EventDetails&information_id=41391" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41391" >Exhibition – Literary Aviary: Birds on Paper (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Tuesday, December 06, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15175&view=EventDetails&information_id=41391" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41391" >Exhibition – Literary Aviary: Birds on Paper (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>4:00 PM - 6:00 PM </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15183&view=EventDetails&information_id=41442" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41442" >Study Break: Bird Walk + Origami</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Wednesday, December 07, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15175&view=EventDetails&information_id=41391" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41391" >Exhibition – Literary Aviary: Birds on Paper (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>3:00 PM </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15333&view=EventDetails&information_id=41755" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41755" >Translation Workshop: Student Reading</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Thursday, December 08, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15175&view=EventDetails&information_id=41391" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41391" >Exhibition – Literary Aviary: Birds on Paper (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Friday, December 09, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15175&view=EventDetails&information_id=41391" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41391" >Exhibition – Literary Aviary: Birds on Paper (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>No Location</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Saturday, December 03, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15268&view=EventDetails&information_id=41625" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41625" >Exhibition - The Language of Images (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>3:00 PM - 5:00 PM </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14836&view=EventDetails&information_id=40568" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40568" >Fetter Chamber Music Concert #3</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>8:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15043&view=EventDetails&information_id=41056" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41056" >Fall 2016 Dance Concert</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Sunday, December 04, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15268&view=EventDetails&information_id=41625" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41625" >Exhibition - The Language of Images (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Monday, December 05, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15268&view=EventDetails&information_id=41625" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41625" >Exhibition - The Language of Images (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14879&view=EventDetails&information_id=40670" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40670" >Monday follows the "Friday" class schedule</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Tuesday, December 06, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14880&view=EventDetails&information_id=40673" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40673" >Classes End. Lottery for spring housing</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15268&view=EventDetails&information_id=41625" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41625" >Exhibition - The Language of Images (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14879&view=EventDetails&information_id=40671" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40671" >Monday follows the "Friday" class schedule</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>5:00 PM - 8:30 PM </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15307&view=EventDetails&information_id=41703" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41703" >Swatties serving at IHN</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>8:00 PM - 9:00 PM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15337&view=EventDetails&information_id=41763" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41763" >Make the Most of Out of Winter Break</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Wednesday, December 07, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15268&view=EventDetails&information_id=41625" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41625" >Exhibition - The Language of Images (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>3:00 PM </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15333&view=EventDetails&information_id=41755" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41755" >Translation Workshop: Student Reading</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Thursday, December 08, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15268&view=EventDetails&information_id=41625" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41625" >Exhibition - The Language of Images (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Friday, December 09, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15268&view=EventDetails&information_id=41625" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41625" >Exhibition - The Language of Images (Multi-Day Event)</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>All Day </A></td><td class="listbodytextalt" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=14881&view=EventDetails&information_id=40675" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="40675" >Finals Begin</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>12:00 AM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15330&view=EventDetails&information_id=41749" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41749" >Out of Sight, But Not Out Of Mind: Covanta Plant Visit</a><span class="listtext"></span></td>
+	</tr><tr>
+		<td align="left" colspan="2" style="width:100%;"><h3 class="adx_wcag_header"><span class="title"><b>Trotter - (Trotter 201)</b></span></h3></td>
+	</tr><tr>
+		<th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:30%;">Start Date and Time</th><th class="listcolumnheadtext" align="left" scope="col" colspan="1" style="width:70%;">Event Details</th>
+	</tr><tr>
+		<td class="listheadtext" align="left" colspan="2" style="width:100%;"><h4 class="adx_wcag_header"><span class="listheadtext">Wednesday, December 07, 2016</span></h4></td>
+	</tr><tr>
+		<td class="listbodytext" align="left" valign="top" colspan="1" style="width:30%;"><A class='listtext'>9:00 AM - 10:00 AM </A></td><td class="listbodytext" align="left" valign="top" colspan="1" style="width:70%;"><a class="url" href="EventList.aspx?fromdate=12/3/2016&todate=12/9/2016&display=Week&type=public&eventidn=15305&view=EventDetails&information_id=41700" target="_self"  data-url="https://calendar.swarthmore.edu/calendar/QuickTip.aspx?Iid" data="41700" >Google at Swarthmore: Gmail Keyboard Shortcuts (Advanced)</a><span class="listtext"></span></td>
+	</tr>
+</table></div>
+                        
+                        <br />
+
+                    </td>
+                </tr>
+            </table>
+
+            <table id="tblPoweredByADE" cellspacing="0" cellpadding="0" border="0" style="border-width:0px;width:100%;border-collapse:collapse;padding-right: 5px; padding-left: 5px; padding-top: 5px; border-top: solid 1px #c1c1c1;">
+	<tr>
+		<td align="right"><span id="lblPoweredByADE"><a href="http://www.activecalendar.com/">Calendar Software powered by Active Calendar and Active Data Calendar</a></span>&nbsp;&nbsp;&nbsp;
+                    </td>
+	</tr>
+</table>
+
+        </div>
+        <div id="pnlModalPopupSection">
+	
+            <div id="divlayer1" class="divlayer divlayerborder divlayerbackground">
+                <div>
+                    <div style="height: 200px; width: 355px; overflow: scroll; background-color: #F5F5F5;">
+                        <span id="lblWTS_1" style="font-weight: bold;">Select item(s) to Search</span>
+                        <div id="divCF_1" class="divCF_1">
+                            
+                        </div>
+                    </div>
+                    <div class="divlayerclosebar" style="width: 355px;">
+                        <div>
+                            <input type="hidden" name="hfSelectedItems1" id="hfSelectedItems1" />
+                            <a class="divlayercloseaction" href="javascript:closeLayer('divlayer1');" style="text-decoration: none;">Close</a>
+                            <a class="divlayernoneaction" href="javascript:selectNone('1');" style="text-decoration: none;">Select None</a>
+                            <a class="divlayerallaction" href="javascript:selectAll('1');" style="text-decoration: none;">Select All</a>
+                            <a class="divlayersaveaction" href="javascript:saveSelectionToSession('CF1');" style="text-decoration: none;">Save</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="divlayer2" class="divlayer divlayerborder divlayerbackground">
+                <div>
+                    <div style="height: 200px; width: 355px; overflow: scroll; background-color: #F5F5F5;">
+                        <span id="lblWTS_2" style="font-weight: bold;">Select item(s) to Search</span>
+                        <div id="divCF_2" class="divCF_2">
+                            
+                        </div>
+                    </div>
+                    <div class="divlayerclosebar" style="width: 355px;">
+                        <div>
+                            <input type="hidden" name="hfSelectedItems2" id="hfSelectedItems2" />
+                            <a class="divlayercloseaction" href="javascript:closeLayer('divlayer2');" style="text-decoration: none;">Close</a>
+                            <a class="divlayernoneaction" href="javascript:selectNone('2');" style="text-decoration: none;">Select None</a>
+                            <a class="divlayerallaction" href="javascript:selectAll('2');" style="text-decoration: none;">Select All</a>
+                            <a class="divlayersaveaction" href="javascript:saveSelectionToSession('CF2');" style="text-decoration: none;">Save</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="divlayer3" class="divlayer divlayerborder divlayerbackground">
+                <div>
+                    <div style="height: 200px; width: 355px; overflow: scroll; background-color: #F5F5F5;">
+                        <span id="lblWTS_3" style="font-weight: bold;">Select item(s) to Search</span>
+                        <div id="divCF_3" class="divCF_3">
+                            
+                        </div>
+                    </div>
+                    <div class="divlayerclosebar" style="width: 355px;">
+                        <div>
+                            <input type="hidden" name="hfSelectedItems3" id="hfSelectedItems3" />
+                            <a class="divlayercloseaction" href="javascript:closeLayer('divlayer3');" style="text-decoration: none;">Close</a>
+                            <a class="divlayernoneaction" href="javascript:selectNone('3');" style="text-decoration: none;">Select None</a>
+                            <a class="divlayerallaction" href="javascript:selectAll('3');" style="text-decoration: none;">Select All</a>
+                            <a class="divlayersaveaction" href="javascript:saveSelectionToSession('CF3');" style="text-decoration: none;">Save</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="divlayer4" class="divlayer divlayerborder divlayerbackground">
+                <div>
+                    <div style="height: 200px; width: 355px; overflow: scroll; background-color: #F5F5F5;">
+                        <span id="lblWTS_4" style="font-weight: bold;">Select item(s) to Search</span>
+                        <div id="divCF_4" class="divCF_4">
+                            
+                        </div>
+                    </div>
+                    <div class="divlayerclosebar" style="width: 355px;">
+                        <div>
+                            <input type="hidden" name="hfSelectedItems4" id="hfSelectedItems4" />
+                            <a class="divlayercloseaction" href="javascript:closeLayer('divlayer4');" style="text-decoration: none;">Close</a>
+                            <a class="divlayernoneaction" href="javascript:selectNone('4');" style="text-decoration: none;">Select None</a>
+                            <a class="divlayerallaction" href="javascript:selectAll('4');" style="text-decoration: none;">Select All</a>
+                            <a class="divlayersaveaction" href="javascript:saveSelectionToSession('CF4');" style="text-decoration: none;">Save</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        
+</div>
+    
+
+<script type='text/javascript'><!--
+if((typeof(PopCalendar)=='undefined')||(PopCalendar.majorVersion==null)||(PopCalendar.minorVersion==null))
+    alert('Unable to find script library "/calendar/PopCalendar2008/PopCalendarAjaxNet.js".\n\nTry placing this file manually');
+else if((PopCalendar.majorVersion<1)||((PopCalendar.majorVersion=1)&&(PopCalendar.minorVersion<0.1)))
+    alert('This page uses an incorrect version of PopCalendarAjaxNet.js.\n\nThe page expects version 1.0.1 or greater. The script library is ' + PopCalendar.majorVersion + '.' + PopCalendar.minorVersion + '.');
+else if((typeof(PopCalendarFunctions)=='undefined')||(PopCalendarFunctions.majorVersion==null)||(PopCalendarFunctions.minorVersion==null))
+    alert('Unable to find script library "/calendar/PopCalendar2008/PopCalendarFunctionsAjaxNet.js".\n\nTry placing this file manually');
+else if((PopCalendarFunctions.majorVersion<1)||((PopCalendarFunctions.majorVersion=1)&&(PopCalendarFunctions.minorVersion<0)))
+    alert('This page uses an incorrect version of PopCalendarFunctionsjaxNet.js.\n\nThe page expects version 1.0.0 or greater. The script library is ' + PopCalendarFunctions.majorVersion + '.' + PopCalendarFunctions.minorVersion + '.');
+// --></script>
+<script type="text/javascript">
+//<![CDATA[
+
+var Page_ValidationActive = false;
+if (typeof(ValidatorOnLoad) == "function") {
+    ValidatorOnLoad();
+}
+
+function ValidatorOnSubmit() {
+    if (Page_ValidationActive) {
+        return ValidatorCommonOnSubmit();
+    }
+    else {
+        return true;
+    }
+}
+        
+theForm.oldSubmit = theForm.submit;
+theForm.submit = WebForm_SaveScrollPositionSubmit;
+
+theForm.oldOnSubmit = theForm.onsubmit;
+theForm.onsubmit = WebForm_SaveScrollPositionOnSubmit;
+
+theForm.oldOnLoad = window.onload;
+window.onload = WebForm_RestoreScrollPosition;
+//]]>
+</script>
+</form>
+    
+                    <!-- END ACTIVEDATA CONTENT -->
+							<div class="calendar_footer">
+								Swarthmore College encourages persons with disabilities to participate in its programs and activities. 
+								If you anticipate needing any type of accommodation or have questions about the physical access provided, 
+								please contact the event sponsor, or Susan Smythe, ADA Program Manager at: 
+								<a href="mailto:ssmythe1@swarthmore.edu">ssmythe1@swarthmore.edu</a> or call <a href="tel:16106902063" class="swat-tel">610-690-2063</a> in advance of your participation or visit.
+						   
+							<p class=" hidden-xs hidden-sm">
+							<a href="/calendar/login.aspx">Administrator Login</a>
+							</p>
+							
+							</div>
+    
+						</article>
+					</div>  
+				</div>
+				<div class="col-md-3 region region-swarthmore-default-sidebar">
+					<div class="region-inner clearfix">
+						<div class="at-panel panel-display one-column clearfix">
+							<div class="region region-one-main">
+								<div class="region-inner clearfix">
+									<aside class="panel-pane pane-fieldable-panels-pane">
+										<div class="panel-heading">
+											<h2 class="pane-title">How Do I...?</h2>
+										</div>
+										<div class="pane-content panel-body">
+											<ul class="list-group">
+												<li class="list-group-item"><a title="Learn about Public Events" href="http://www.swarthmore.edu/news-events/whats-going-swarthmore" target="_self"><i class="fa fa-angle-right pull-right"></i>Learn about Public Events</a></li>
+												<li class="list-group-item"><a title="Plan an Event" href="http://www.swarthmore.edu/facilities-management/plan-event" target="_self"><i class="fa fa-angle-right pull-right"></i>Plan an Event</a></li>
+												<li class="list-group-item"><a title="Reserve Space" href="http://cabezon.swarthmore.edu/VirtualEMS/BrowseEvents.aspx" target="_self"><i class="fa fa-angle-right pull-right"></i>Reserve Space (EMS)</a></li>
+												<li class="list-group-item li_last"><a title="Submit An Event" href="/calendar/oePublicForm.aspx" target="_self"><i class="fa fa-angle-right pull-right"></i>Submit Event to Calendar</a></li>
+											</ul>
+										</div>
+									</aside>
+									<aside class="panel-pane pane-fieldable-panels-pane">
+										<div class="panel-heading">
+											<h2 class="pane-title">Categories</h2>
+										</div>
+										<div class="pane-content panel-body">
+											<ul class="list-group">
+												<li class="list-group-item"><a href="/calendar/" target="_self" title="All Categories"><i class="fa fa-angle-right pull-right"></i>All Categories</a></li>                        
+												<li class="list-group-item"><a href="/calendar/default.aspx?type=&amp;view=Summary&amp;category=2-0&amp;range=next30" target="_self" title="Academic Calendar"><i class="fa fa-angle-right pull-right"></i>Academic Calendar</a></li>
+												<li class="list-group-item"><a href="/calendar/default.aspx?type=&amp;view=Summary&amp;category=30-0&amp;range=next30" target="_self" title="Arts and Culture"><i class="fa fa-angle-right pull-right"></i>Arts &amp; Culture</a></li>	
+												<li class="list-group-item"><a href="/calendar/default.aspx?type=&amp;view=Summary&amp;category=3-0&amp;range=next30" target="_self" title="Athletics"><i class="fa fa-angle-right pull-right"></i>Athletics</a></li>
+												<li class="list-group-item"><a href="/calendar/default.aspx?type=&amp;view=Summary&amp;category=26-0&amp;range=next30" target="_self" title="Lectures"><i class="fa fa-angle-right pull-right"></i>Lectures</a></li>
+												<li class="list-group-item"><a href="/calendar/default.aspx?type=&amp;view=Summary&amp;category=29-0&amp;range=next14" target="_self" title="Public Events"><i class="fa fa-angle-right pull-right"></i>Public Events</a></li>
+												<li class="list-group-item li_last"><a href="/calendar/default.aspx?type=&amp;view=Summary&amp;category=5-0&amp;range=next14" target="_self" title="Student Events"><i class="fa fa-angle-right pull-right"></i>Student Events</a></li>
+											</ul>
+										</div>
+									</aside>
+									<aside class="panel-pane pane-fieldable-panels-pane">
+										<div class="panel-heading">
+											<h2 class="pane-title">Contact Us</h2>
+										</div>
+										<div class="pane-content panel-body" style="overflow: hidden;padding: 11px 5px;f">
+							
+											<b>Help &amp; Questions</b><br>
+											<a href="mailto:calendar@swarthmore.edu">calendar@swarthmore.edu</a><br><br>                        
+										
+											<b>Space Reservations</b><br>
+											<a href="mailto:space@swarthmore.edu">space@swarthmore.edu</a><br>
+    
+										</div>
+									</aside>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section> <!-- /.block -->
+	</div>    
+	<footer class="footer row">
+		
+	  <div>
+		<div class="hidden-xs col-sm-12 col-md-8 swat-pop-dest">
+		   <h5 class="visible-md visible-lg">Popular Destinations:</h5>
+			  <div class="col-sm-4">
+				<ul class="links site-menu"><li class="menu-43570 first"><a href="http://www.swarthmore.edu/a-z-index">A-Z Index</a></li>
+	<li class="menu-43579"><a href="http://www.swarthmore.edu/admissions-aid/apply-to-swarthmore">Apply to Swarthmore</a></li>
+	<li class="menu-43583"><a href="http://bookstore.swarthmore.edu/">Bookstore</a></li>
+	<li class="menu-44054"><a href="http://bulletin.swarthmore.edu/" title="">The Bulletin</a></li>
+	<li class="menu-43587 last"><a href="http://calendar.swarthmore.edu/">Campus Calendar</a></li>
+	</ul>          </div>
+			  <div class="col-sm-4">
+				<ul class="links site-menu"><li class="menu-43568 first"><a href="http://www.swarthmore.edu/career-services">Career Services</a></li>
+	<li class="menu-43574"><a href="http://www.swarthmore.edu/human-resources">Employment</a></li>
+	<li class="menu-43581"><a href="http://www.swarthmore.edu/lang-center-civic-social-responsibility">Lang Center for Civic &amp; Social Responsibility</a></li>
+	<li class="menu-43582"><a href="http://gift.swarthmore.edu">Make a Gift</a></li>
+	<li class="menu-43586 last"><a href="http://www.scottarboretum.org/">Scott Arboretum</a></li>
+	</ul>          </div>
+			  <div class="col-sm-4">
+				<ul class="links site-menu"><li class="menu-43569 first"><a href="http://www.swarthmore.edu/alumni">Alumni</a></li>
+	<li class="menu-43572"><a href="https://secure.swarthmore.edu/dash/">Campus Community</a></li>
+	<li class="menu-43580"><a href="http://www.swarthmore.edu/parents">Parents</a></li>
+	<li class="menu-43585 last"><a href="http://www.swarthmore.edu/visitors">Visitors</a></li>
+	</ul>          </div>
+		</div>
+		<div class="col-md-4">      
+			<div class="col-xs-12 col-sm-8 col-md-12">
+			  <ul id="social-media">
+				<li>
+				  <a title="Swarthmore College on Facebook" href="http://www.facebook.com/pages/Swarthmore-College/44667262131" class="icon-fb">
+					<span class="sr-only">Swarthmore College on Facebook</span>
+					<i class="fa fa-facebook-square fa-2x"></i>
+				  </a>
+				</li>
+				<li>
+				  <a title="Swarthmore College on Twitter" href="http://twitter.com/#!/swarthmore" class="icon-twit">
+					<span class="sr-only">Swarthmore College on Twitter</span>
+					<i class="fa fa-twitter-square fa-2x"></i>
+				  </a>
+				</li>
+				<li>
+				  <a title="Swarthmore College on Instagram" href="http://instagram.com/swarthmorecollege" class="icon-insta">
+					<span class="sr-only">Swarthmore College on Instagram</span>
+					<i class="fa fa-instagram fa-2x"></i>
+				  </a>
+				</li>
+				<li>
+				  <a title="Swarthmore College at LinkedIn" href="http://www.linkedin.com/company/swarthmore-college" class="icon-linked">
+					<span class="sr-only">Swarthmore College at LinkedIn</span>
+					<i class="fa fa-linkedin-square fa-2x"></i>
+				  </a>
+				</li>
+				<li>
+				  <a title="Swarthmore College on YouTube" href="http://www.youtube.com/user/SwarthmoreCollegePA" class="icon-utube">
+					<span class="sr-only">Swarthmore College on YouTube</span>
+					<i class="fa fa-youtube-square fa-2x"></i>
+				  </a>
+				</li>
+				<li>
+				  <a title="Swarthmore College on iTunes" href="http://www.swarthmore.edu/news-events/swarthmore-itunes-u" class="icon-tunes">
+					<span class="sr-only">Swarthmore College on iTunes</span>
+					<i class="fa fa-music fa-2x"></i>
+				  </a>
+				</li>
+			  </ul>
+			</div>
+			<div class="hidden-xs hidden-sm col-md-12 footer-search">
+			  <form action="http://www.swarthmore.edu/search" class="" role="search">
+				  <div class="input-group">
+					  <label for="swat-footer-search" class="sr-only">Search Swarthmore</label>
+					  <input class="form-control" id="swat-footer-search" name="keys" type="text" placeholder="Search Swarthmore">
+					  <div class="input-group-btn">
+						<button type="submit" class="btn btn-default btn-search">
+						  <span class="sr-only">Submit Search</span>
+						  <span class="fa fa-search"></span>
+						</button>
+					  </div>
+				  </div>
+			  </form>
+			</div>
+		</div>
+	  </div>
+	  <div>
+		<div class="col-xs-12">
+		  <p>
+			<small>Swarthmore College, 500 College Avenue, Swarthmore, PA 19081 
+			  <span class="swat-tel-wrap">Phone: <a href="tel:16103288000" class="swat-tel">610-328-8000</a></span></small></p>
+			
+		  <p></p>
+		  <p>
+			<small>
+			  © 2016 Swarthmore College. All Rights Reserved. See <a href="http://www.swarthmore.edu/feedback-privacy/website-privacy-statement">Privacy Policy</a>.
+			</small>
+		  </p> 
+		  
+		</div>
+	  </div>
+	</footer> 
+</div>
+<script type="text/javascript" src="/calendar/swat-theme/collapse.js"></script>
+<script type="text/javascript" src="/calendar/swat-theme/custom.js"></script> 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-19785923-4', 'auto');
+  ga('send', 'pageview');
+</script>
+
+</body>
+</html>
+"""
+    #newL = []
+    #for i in range(48):
+        #newL.append('Science Center')
+    #return newL
+    soup= BeautifulSoup(html_doc, 'html.parser')
+    location = soup.find_all(["span class=\"title"])
+    print location
+    
+def timecleanup(L):
+    newL = []
+    for i in range(len(L)):
+        newL.append(L[i])
+    return newL
+    
+def namecleanup(L):
+    newL = []
+    for i in range(len(L)):
+        newL.append(L[i])
+    for i,value in enumerate(newL):
+        newL[i] = value.strip("u'")
+        newL[i] = value.strip("'")
+        newL[i] = value.strip(" \u")
+    return newL
+    
+def main():
+    page = requests.get('https://calendar.swarthmore.edu/calendar/EventList.aspx?fromdate=12%2f3%2f2016&todate=12%2f9%2f2016&display=Week&view=DateTime')
+    tree = html.fromstring(page.content)
+    time = tree.xpath('//a[@class="listtext"]/text()')
+    name = tree.xpath('//a[@class="url"]/text()')
+    #location = tree.xpath('//td[@align="left"][@colspan="2"][@style="width:100%:"]/text()/span/b/text()')
+    location = []
+    
+    location = locationcleanup(location)    
+    name = namecleanup(name)
+    time = timecleanup(time)
+    
+    print len(location)
+    print len(name)
+    print len(time)
+    
+    x = format(time,name,location)
+    print x
+    return x
+    
+    
+if __name__ == "__main__":
+    main()
