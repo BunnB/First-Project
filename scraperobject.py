@@ -60,14 +60,12 @@ class SwatScraper():
                 if "Application Deadline" in self.curr:
                     pass
                 else:
-                    print self.curr
                     time_name = stringfix(self.curr)
                     event = OrderedDict([("id",__id), ("name",time_name[2]), ("start_time",time_name[0]), ("end_time",time_name[1]), ("location",location), ("lat",37.5), ("lng",75), ("description",day)])
                     self.events.append(event)
                     __id += 1
             else:
                 pass
-        self.events = json.dumps(self.events, indent = 4)
         return self.events  
             
     def readline(self): 
