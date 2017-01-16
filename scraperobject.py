@@ -16,7 +16,7 @@ class SwatScraper():
         """
         self.string = string
         self.curr = None
-        self.locations = ['Clothier','Black Cultural Center','Kohlberg','No Location','Lang Music Buiding','Lang Performing Arts Center','McCabe Library','Parrish','Matchbox','Lamb-Miller Fieldhouse','Trotter','Science Center']
+        self.locations = ['Clothier','Bond Complex','Black Cultural Center','Kohlberg','No Location','Lang Music Buiding','Lang Performing Arts Center','McCabe Library','Friends Meeting House','Parrish','Matchbox','Lamb-Miller Fieldhouse','Trotter','Science Center']
         self.days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday',]
         self.times = ['AM','PM','All Day']
         self.events = []
@@ -61,12 +61,15 @@ class SwatScraper():
                     pass
                 else:
                     time_name = stringfix(self.curr)
-                    event = OrderedDict([("id",__id), ("name",time_name[2]), ("start_time",time_name[0]), ("end_time",time_name[1]), ("location",location), ("lat",37.5), ("lng",75), ("description",day)])
-                    self.events.append(event)
+                    if len(time_name) == 2:
+                        event = OrderedDict([("id",__id), ("name",time_name[1]), ("start_time",time_name[0]), ("end_time"," "), ("location",location), ("lat",37.5), ("lng",75), ("description",day)])
+                        self.events.append(event)
+                    else:
+                        event = OrderedDict([("id",__id), ("name",time_name[2]), ("start_time",time_name[0]), ("end_time",time_name[1]), ("location",location), ("lat",37.5), ("lng",75), ("description",day)])
+                        self.events.append(event)
                     __id += 1
             else:
                 pass
-        return self.events  
             
     def readline(self): 
         """

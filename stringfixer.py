@@ -15,15 +15,25 @@ def stringfix(string):
         index1 = string.rfind("PM",0,20)
         index2 = string.rfind("AM",0,20)
         if index1 > index2:
-            time = string[0:index1 + 2]
-            time = time.split(' - ')
-            name = string[index1 + 3::]
-            return [time[0],time[1],name]
+            if index1*index2 <= 0:
+                time = string[0:index1+2]
+                name = string[index1+3::]
+                return [time,name]
+            else:
+                time = string[0:index1 + 2]
+                time = time.split(' - ')
+                name = string[index1 + 3::]
+                return [time[0],time[1],name]
         else:
-            time = string[0:index2 + 2]
-            time = time.split(' - ')
-            name = string[index2 + 3::]
-            return [time[0],time[1],name]
+            if index1*index2 <= 0:
+                time = string[0:index2+ 2]
+                name = string[index2+3::]
+                return [time,name]
+            else:
+                time = string[0:index2 + 2]
+                time = time.split(' - ')
+                name = string[index2 + 3::]
+                return [time[0],time[1],name]
         
     
         

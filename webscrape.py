@@ -60,6 +60,7 @@ def scrape():
     
 if __name__ == "__main__":
     list_of_events = scrape()
-    with open("data.json","w") as file:
-        json.dump(list_of_events, file, indent = 4)
+    with open('data.txt','w') as outfile:
+        json.dump(list_of_events,outfile,indent=4)
+    #print json.dumps(list_of_events, file, indent = 4)
 
