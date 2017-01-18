@@ -10,6 +10,16 @@ from stringfixer import stringfix
 from firebase import *
 
 firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
+result = firebase.get('/events',None)
+curr_events = []
+for id_key,event in result.items():
+    for key,val in event.items():
+        try:
+            event[key] = val.encode("utf-8")
+        except:
+            pass
+        event[key.encode("utf-8")] = event.pop(key)
+    curr_events.append(event)
 
 class SwatScraper():
     def __init__(self, string):
@@ -66,10 +76,16 @@ class SwatScraper():
                     time_name = stringfix(self.curr)
                     if len(time_name) == 2:
                         event = {"name":time_name[1], "start_time":time_name[0], "end_time":" ", "location":location, "lat":37.5, "lng":75, "description":day}
-                        result = firebase.post("/events",event)
+                        if event in curr_events:
+                            pass
+                        else:
+                            result = firebase.post("/events",event)
                     else:
                         event = {"name":time_name[2], "start_time":time_name[0], "end_time":time_name[1], "location":location, "lat":37.5, "lng":75, "description":day}
-                        result = firebase.post("/events",event)
+                        if event in curr_events:
+                            pass
+                        else:
+                            result = firebase.post("/events",event)
                     __id += 1
             else:
                 pass
