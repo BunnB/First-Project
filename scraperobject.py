@@ -9,7 +9,7 @@ from sortedcollections import OrderedDict
 from stringfixer import stringfix
 from firebase import *
 
-firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
+firebase = firebase.FirebaseApplication('THIS IS WHERE MY FIREBASE URL GOES',None)
 result = firebase.get('/events',None)
 curr_events = []
 for id_key,event in result.items():
