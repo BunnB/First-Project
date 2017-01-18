@@ -10,6 +10,7 @@ from datetime import *
 from dateutil.relativedelta import *
 import json
 import calendar
+from firebase import *
 
 """
 TODAYS DATE AND NEXT'S WEEK DATE
@@ -60,7 +61,10 @@ def scrape():
     
 if __name__ == "__main__":
     list_of_events = scrape()
-    with open('data.txt','w') as outfile:
-        json.dump(list_of_events,outfile,indent=4)
-    #print json.dumps(list_of_events, file, indent = 4)
+    print list_of_events
+    #firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
+    #sent = json.dumps(list_of_events)
+    #result = firebase.post("/events",sent)
+    #with open('data.json','w') as outfile:
+        #json.dump(list_of_events,outfile,indent=4)
 

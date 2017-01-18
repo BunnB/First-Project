@@ -7,6 +7,9 @@ Happy new year nerds HEHheHEheHhEhE
 import json
 from sortedcollections import OrderedDict
 from stringfixer import stringfix
+from firebase import *
+
+firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
 
 class SwatScraper():
     def __init__(self, string):
@@ -62,11 +65,11 @@ class SwatScraper():
                 else:
                     time_name = stringfix(self.curr)
                     if len(time_name) == 2:
-                        event = OrderedDict([("id",__id), ("name",time_name[1]), ("start_time",time_name[0]), ("end_time"," "), ("location",location), ("lat",37.5), ("lng",75), ("description",day)])
-                        self.events.append(event)
+                        event = {"name":time_name[1], "start_time":time_name[0], "end_time":" ", "location":location, "lat":37.5, "lng":75, "description":day}
+                        result = firebase.post("/events",event)
                     else:
-                        event = OrderedDict([("id",__id), ("name",time_name[2]), ("start_time",time_name[0]), ("end_time",time_name[1]), ("location",location), ("lat",37.5), ("lng",75), ("description",day)])
-                        self.events.append(event)
+                        event = {"name":time_name[2], "start_time":time_name[0], "end_time":time_name[1], "location":location, "lat":37.5, "lng":75, "description":day}
+                        result = firebase.post("/events",event)
                     __id += 1
             else:
                 pass
