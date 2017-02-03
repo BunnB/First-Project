@@ -17,11 +17,11 @@ Todays date and tomorrow-ow
 """
 now = datetime.today()
 later = now + relativedelta(days=+2)
-#day = now.day
+day = now.day
 n_day = later.day
-#month = now.month
+month = now.month
 n_month = later.month
-#year = now.year
+year = now.year
 n_year = later.year
 
 """
@@ -48,7 +48,7 @@ def graburl():
     returns proper URL for the page
     only return page for events 2 days in future
     """
-    url = "http://calendar.swarthmore.edu/calendar/EventList.aspx?fromdate={}%2f{}%2f{}&todate={}%2f{}%2f{}&display=Week&view=Location#".format(n_month,n_day,n_year,n_month,n_day,n_year)
+    url = "http://calendar.swarthmore.edu/calendar/EventList.aspx?fromdate={}%2f{}%2f{}&todate={}%2f{}%2f{}&display=Week&view=Location#".format(month,day,year,n_month,n_day,n_year)
     return url
 
 def scrape():

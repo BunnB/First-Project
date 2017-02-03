@@ -12,7 +12,8 @@ from firebase import *
 from firebaseupdater import *
 
 firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
-curr_events = firebaseupdate()
+curr_events = []
+#curr_events = firebaseupdate(firebase) #hash out and run to reset
 
 locDic = {"Clothier": (39.904258,-75.354876),
           "Bond Complex": (39.905395,-75.350844),
@@ -87,14 +88,14 @@ class SwatScraper():
                     pass
                 else:
                     time_name = stringfix(self.curr) #Returns list of start/end time and name from time string
-                    if len(time_name) == 2:
-                        event = {"name":time_name[1], "start_time":time_name[0], "end_time":" ", "location":location, "lat":locDic[loc][0], "lng":locDic[loc][1], "date":day, "description":"", "count": 0, "message": " people are attending"}
+                    if len(time_name) == 3:
+                        event = {"sorted_time": time_name[2], "name":time_name[1], "start_time":time_name[0], "end_time":" ", "location":location, "lat":locDic[loc][0], "lng":locDic[loc][1], "date":day, "description":"", "count": 0, "message": " people are attending"}
                         if event in curr_events: #checks too see whether new day is already in the database
                             pass
                         else:
                             result = firebase.post("/events/" + child,event)
                     else:
-                        event = {"name":time_name[2], "start_time":time_name[0], "end_time":time_name[1], "location":location, "lat":locDic[loc][0], "lng":locDic[loc][1], "date":day, "description":"", "count": 0, "message": " people are attending"}
+                        event = {"sorted_time": time_name[3], "name":time_name[2], "start_time":time_name[0], "end_time":time_name[1], "location":location, "lat":locDic[loc][0], "lng":locDic[loc][1], "date":day, "description":"", "count": 0, "message": " people are attending"}
                         if event in curr_events:
                             pass
                         else:

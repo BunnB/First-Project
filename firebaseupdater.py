@@ -1,9 +1,11 @@
+"""
+Should sep curr list generator and adder.
+"""
+
 from firebase import *
 
-def firebaseupdate():
+def firebaseupdate(firebase):
     curr_events = []
-    firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
-
     branch0 = firebase.get('/events/day0',None)
     branch1 = firebase.get('/events/day1',None)  #Grabs branches
     branch2 = firebase.get('/events/day2',None)
