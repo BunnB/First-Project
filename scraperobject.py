@@ -2,6 +2,7 @@
 BunnB 2k17
 Happy new year nerds HEHheHEheHhEhE
 
+
 """
 #LPAC List gall = List gall
 
@@ -10,25 +11,15 @@ from sortedcollections import OrderedDict
 from fixers import *
 from firebase import *
 from firebaseupdater import *
+from locDic import locDic
+from dupecheck import *
 
 firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
 curr_events = []
-#curr_events = firebaseupdate(firebase) #hash out and run to reset
-
-locDic = {"Clothier": (39.904258,-75.354876),
-          "Bond Complex": (39.905395,-75.350844),
-          "Black Cultural Center": (39.906952,-75.351481),
-          "Kohlberg": (39.905830,-75.354873),
-          "Lang Music Building": (39.905500,-75.356115),
-          "Lang Performing Arts Center": (39.905377,-75.355310),
-          "McCabe Library": (39.905361,-75.352797),
-          "Friends Meeting House": (39.907342,-75.353221),
-          "Parrish": (39.905188,-75.354202),
-          "Matchbox": (39.901394,-75.355239),
-          "Lamb-Miller Fieldhouse": (39.901279,-75.354112),
-          "Trotter": (39.906415,-75.353912),
-          "Science Center": (39.906859,-75.355855),
-	      "No Location": (39.904321,-75.351434)}
+try:
+    curr_events = firebaseupdate(firebase) #if crash or bug, delete day branches and rerun
+except:
+    pass
 
 class SwatScraper():
     def __init__(self, string):
@@ -80,7 +71,7 @@ class SwatScraper():
                 loc = self.currloc
                 location = self.curr
             elif self.checkDay(self.curr) == True:
-                masterday = datefix(self.curr) #Returns formatted date and Day queue (Day1,Day2,Day3)
+                masterday = dateformat(self.curr) #Returns formatted date and Day queue (Day1,Day2,Day3)
                 day = masterday[0] #date
                 child = masterday[1] #queue
             elif self.checkTime(self.curr) == True:
@@ -93,13 +84,19 @@ class SwatScraper():
                         if event in curr_events: #checks too see whether new day is already in the database
                             pass
                         else:
-                            result = firebase.post("/events/" + child,event)
+                            if dupecheck(event,curr_events) == False:
+                                result = firebase.post("/events/" + child,event)
+                            else:
+                                pass
                     else:
                         event = {"sorted_time": time_name[3], "name":time_name[2], "start_time":time_name[0], "end_time":time_name[1], "location":location, "lat":locDic[loc][0], "lng":locDic[loc][1], "date":day, "description":"", "count": 0, "message": " people are attending"}
                         if event in curr_events:
                             pass
                         else:
-                            result = firebase.post("/events/" + child,event)
+                            if dupecheck(event,curr_events) == False:
+                                result = firebase.post("/events/" + child,event)
+                            else:
+                                pass
                     __id += 1
             else:
                 pass

@@ -1,10 +1,14 @@
 """
-Should sep curr list generator and adder.
+moves day1 -> day0
+moves day2 -> day1 so scraper can scrape day3
+Added: duplicate checker
 """
 
 from firebase import *
+from fixers import *
 
 def firebaseupdate(firebase):
+    dupe_list = []
     curr_events = []
     branch0 = firebase.get('/events/day0',None)
     branch1 = firebase.get('/events/day1',None)  #Grabs branches
@@ -23,9 +27,14 @@ def firebaseupdate(firebase):
                 except:
                     pass
                 child_event[key] = val
-            if branch == branches[1]:
-                firebase.post('/events/day0',child_event) #moves day1 -> day0
-            elif branch == branches[2]:
-                 firebase.post('/events/day1',child_event) #moves day2 -> day1
             curr_events.append(child_event) #Adds to curr events to make sure no clones are added
+            if branch == branches[0]:
+                branch = getbranch(child_event[date])
+                firebase.post('/events/{}'.format(branch),child_event) #moves day2 -> day1
+            elif branch == branches[1]:
+                branch = getbranch(child_event[date])
+                firebase.post('/events/{}'.format(branch),child_event) #moves day1 -> day0
+            elif branch == branches[2]:
+                branch = getbranch(child_event[date])
+                firebase.post('/events/{}'.format(branch),child_event) #moves day2 -> day1
     return curr_events

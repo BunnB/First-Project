@@ -78,10 +78,11 @@ def timesort(time):
 
 
 
-def datefix(string):
+def dateformat(string):
     """
     Grabs proper date format from string of this type:
     Friday, February 03, 2017
+    returns [formatted date,daybranch]
     """
     now = datetime.today()
     months = {"January": "01","February": "02","March":"03","April":"04","May":"05","June":"06","July":"07","August":"08","September":"09","October":"10","November":"11","December":"12"}
@@ -91,20 +92,26 @@ def datefix(string):
         if month in string:
             now = datetime.today()
             day = months[month] + '-' + date[0][len(month)+2::] + '-'+date[1][1::]
-            event_date = datetime(int(date[1][1::]),int(months[month]),int(date[0][len(month)+2::])) #usable for datetime
-            event_date = event_date + relativedelta(days=+1) #end of day + 3 days ahead
-            now = now + relativedelta(days=+1)
-            i = 0
-            while event_date > now:
-                now = now + relativedelta(days=+1)
-                i+=1
-            return [day,"day" + str(i)]
+            branch = getbranch(day)
+            return [day,branch] #[]
+
+def getbranch(day):
+    """
+    returns branch name from formatted event date
+    """
+    now = datetime.today()
+    day = day.split("-")
+    event_date = datetime(int(day[2]),int(day[0]),int(day[1])) #usable for datetime
+    event_date = event_date + relativedelta(days=+1) #end of day + 3 days ahead
+    now = now + relativedelta(days=+1)
+    i = 0
+    while event_date > now:
+        now = now + relativedelta(days=+1)
+        i+=1
+    branch = "day" + str(i)
+    return branch
 
 
 if __name__ == "__main__":
-    string = "4:30 AM - 5:30 AM Collection - a Celebration of Light"
-    print stringfix(string)
-    string1 = "All Day"
-    print stringfix(string1)
-    string2 = "9:30 AM Collection - a Celebration of Light"
-    print stringfix(string2)
+    string = "2-16-2017"
+    print(getbranch(string))
