@@ -13,7 +13,7 @@ from openpyxl import *
 #id for event so we can do cloning check/dupecheck/nowevents updaterby
 
 def launchGUI():
-    fireref = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
+    fireref = firebase.FirebaseApplication('########',None)
     forms = fireref.get('/forms',None)
     for id_key,event in forms.items(): #loops through list of now events
         clone = {}
