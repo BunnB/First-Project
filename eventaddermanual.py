@@ -4,7 +4,7 @@ from datetime import *
 from dateutil.relativedelta import *
 from locDic import locDic
 
-firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
+firebase = firebase.FirebaseApplication('fefefwefwdfwfd',None)
 
 while True:
     now = datetime.today()
