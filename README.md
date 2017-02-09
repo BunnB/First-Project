@@ -2,7 +2,7 @@
 # 
 #
 ##############################################################################################################################
-"""
+
 dupecheck: checks for duplicate events before adding to database
  
   eventadder: GUI for pre-approved events, also write to xl file
@@ -18,7 +18,7 @@ dupecheck: checks for duplicate events before adding to database
   scraperobject: scrapes info and adds to firebase from long string
  
   webscrape: does everything
-"""
+
 ##############################################################################################################################
 #
 #
