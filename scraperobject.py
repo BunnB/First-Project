@@ -14,7 +14,7 @@ from firebaseupdater import *
 from locDic import locDic
 from dupecheck import *
 
-firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
+firebase = firebase.FirebaseApplication('#efdcdcc',None)
 curr_events = []
 try:
     curr_events = firebaseupdate(firebase) #if crash or bug, delete day branches and rerun
