@@ -40,7 +40,7 @@ def namecheck(event,thing):
 
 
 if __name__ == "__main__":
-    firebase = firebase.FirebaseApplication('https://swatevents-2341b.firebaseio.com/',None)
+    firebase = firebase.FirebaseApplication('**************',None)
     thing = {"Hello":"sucker"}
     test = "test"
     firebase.post('events/test/',thing)
