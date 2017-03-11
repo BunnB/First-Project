@@ -64,7 +64,7 @@ def scrape():
 if __name__ == "__main__":
     list_of_events = scrape()
     #print list_of_events
-    #firebase = firebase.FirebaseApplication('https://mapapp-2a84b.firebaseio.com/',None)
+    #firebase = firebase.FirebaseApplication('************',None)
     #sent = json.dumps(list_of_events)
     #result = firebase.post("/events",sent)
     #with open('data.json','w') as outfile:
