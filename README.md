@@ -1,11 +1,17 @@
-# My first CS project; worked on it during my time in the Intro to Computer Science class @ Swarthmore.
+# My first CS project
+
+(worked on it during my time in the Intro to Computer Science class @ Swarthmore)
 
 This project serves as the the backend for an Swarthmore event-tracking web app. The collection of scripts scrapes event information from the swarthmore calendar website and posts the event data (JSON) into firebase sorting them based on date and whether the event is currently occurring. Included is a manual event-adding tool, an event-approving tool for student-submitted events, and a microsoft excel writer to write in event details into an excel log.
 
 Things gained:
+
 Familiarity with JSON data format
+
 Familiarity Firebase API
+
 Familiarity with popular python packages such as requests, bs4, datetime, urllib, and more
+
 Improved general python skills and development skills
 # 
 #
