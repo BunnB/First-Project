@@ -101,8 +101,15 @@ def getbranch(day):
     """
     now = datetime.today()
     day = day.split("-")
-    event_date = datetime(int(day[2]),int(day[0]),int(day[1])) #usable for datetime
+    for i in range(len(day)):
+        day[i] = day[i].encode('utf-8')
+    try: #catches 2 diff date formats
+        event_date = datetime(int(day[0]),int(day[1]),int(day[2])) #usable for datetime
+    except:
+        event_date = datetime(int(day[2]),int(day[0]),int(day[1])) #usable for datetime
     event_date = event_date + relativedelta(days=+1) #end of day + 3 days ahead
+    if event_date < now: #if event before day0
+        return "passed"
     now = now + relativedelta(days=+1)
     i = 0
     while event_date > now:
@@ -111,7 +118,32 @@ def getbranch(day):
     branch = "day" + str(i)
     return branch
 
+def idfixer(date,name):
+    while len(name) < len(date): #makes sure len of name is at least 10 for making the id
+        name = name*2
+    eyed = []
+    for i in date:
+        if i == "-":
+            eyed.append("x")
+        else:
+            eyed.append(i)
+    for j in range(len(date)):
+        if name[j].isalpha() == False:
+            eyed[j] = eyed[j] + "X"
+        else:
+            eyed[j] = eyed[j] + name[j]
+    fixedid = ""
+    for k in eyed:
+        fixedid += k
+    return fixedid
+
+def miltimefixer(time):
+    timez = time.split(":")
+    sorted_time = (int(timez[0])*60) + (int(timez[1]))
+    return sorted_time
+
+
 
 if __name__ == "__main__":
-    string = "2-16-2017"
-    print(getbranch(string))
+    time = "18:40"
+    print miltimefixer(time)

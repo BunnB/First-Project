@@ -1,28 +1,23 @@
 """
 duplicates checker
-v0.01
+v0.11
 """
+#FIX DUPE
 from fixers import timesort
 from firebase import *
-#grabs firebase
-#check name similarity
-#check time similarity
-#if time not same = notsame event
-#elif name same enough, = same event
-#else not same event
-#remove same event
 
-def dupecheck(event,eventlist):
-    if len(eventlist) == 0:
+def dupecheck(event,currlist):
+    if len(currlist) == 0:
         return False
-    for thing in eventlist:
-        if timecheck(event,thing) == False:
-            return False
-        elif namecheck(event,thing) == True:
+    for thing in currlist:
+        if event["id"] in currlist:
             return True
         else:
             return False
 
+"""
+UNUSED BUT STILL KEPT
+"""
 def timecheck(event,thing):
     print event
     e_start = event[start_time]
@@ -45,7 +40,7 @@ def namecheck(event,thing):
 
 
 if __name__ == "__main__":
-    firebase = firebase.FirebaseApplication('###########',None)
+    firebase = firebase.FirebaseApplication('https://swatevents-2341b.firebaseio.com/',None)
     thing = {"Hello":"sucker"}
     test = "test"
     firebase.post('events/test/',thing)

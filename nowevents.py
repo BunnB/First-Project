@@ -6,12 +6,14 @@ checks to see if time if current time is
 #grab start and end time, -> grab their ranks
 #grab now time -> convert to rank
 # if now time rank > start , and, now time rank < end
-#if they are add them to curr_events
+#if they are add their ids to curr_events
+
+#ALL DAY IS STILL BEING ADDED EVEN THOUGH ITS ALREADY IN THERE
 
 from firebase import *
 from fixers import *
 from datetime import *
-firebase = firebase.FirebaseApplication('wsfddefedfcfwdf',None)
+firebase = firebase.FirebaseApplication('https://swatevents-2341b.firebaseio.com/',None)
 def eventsNow():
     branch = "now"
     now = datetime.today()
@@ -39,9 +41,10 @@ def eventsNow():
             elif comp < start or comp > end: #if event hasnt happened or hasnt ended
                 firebase.delete("/events/now/"+id_key.encode("utf-8"),None) #delete event from now
             clone[key] = val
-            curr_events.append(clone) #Adds to curr events to make sure no clones are added
+            curr_events.append(clone["id"]) #Adds to curr events to make sure no clones are added
     except:
         pass
+    print curr_events
 
     for id0_key,event in branch0.items(): #loops through list of branch0
         child_event = {}
@@ -52,18 +55,22 @@ def eventsNow():
             except:
                 pass
             child_event[key] = val
-        start = child_event["sorted_time"]
+        try:
+            start = child_event["sorted_time"]
+        except:
+            print("ERROR: SORTED TIME NOT FOUND")
         end = timesort(child_event["end_time"])
         comp = timesort(now)
         if start == 0 and end == 0: #if event is allday
-            if child_event in curr_events:
+            if child_event["id"] in curr_events:
                 pass
             else:
                 firebase.post('/events/{}'.format(branch),child_event)
         elif comp < end and comp > start: #if event is happening now
-            if child_event in curr_events:
+            if child_event["id"] in curr_events:
                 pass
             else:
+                pass
                 firebase.post('/events/{}'.format(branch),child_event)
         elif comp > end and comp > start: #if event ended
             firebase.delete("/events/day0/{}".format(id0_key),None) #delete event from branch0
@@ -71,6 +78,10 @@ def eventsNow():
             pass
 
 def checktwelve(now):
+    """
+    now is [hour,minute]
+    """
+    print now
     now[1] = str(now[1])
     if now[0] > 12:
         if len(now[1]) == 1:

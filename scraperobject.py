@@ -14,10 +14,18 @@ from firebaseupdater import *
 from locDic import locDic
 from dupecheck import *
 
-firebase = firebase.FirebaseApplication('#efdcdcc',None)
-curr_events = []
+firebase = firebase.FirebaseApplication('https://swatevents-2341b.firebaseio.com/',None)
+
+"""
+PRE-SCRAPE PROTOCOL
+"""
+
 try:
     curr_events = firebaseupdate(firebase) #if crash or bug, delete day branches and rerun
+except:
+    curr_events = []
+try:
+    approvedupdate(firebase)
 except:
     pass
 
@@ -29,8 +37,8 @@ class SwatScraper():
         """
         self.string = string
         self.curr = None
-        self.locations = ['Clothier','Bond Complex','Black Cultural Center','Kohlberg','No Location','Lang Music Building','Lang Performing Arts Center','McCabe Library','Friends Meeting House','Parrish','Matchbox','Lamb-Miller Fieldhouse','Trotter','Science Center']
-        self.days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday',]
+        self.locations = ['Clothier','Bond Complex','Black Cultural Center','Kohlberg','No Location','Lang Music Building','Lang Performing Arts Center','McCabe Library','Friends Meeting House','Parrish','Matchbox','Lamb-Miller Fieldhouse','Trotters','Science Center','Alice Paul','Lang Center']
+        self.days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
         self.times = ['AM','PM','All Day']
         self.events = curr_events
         self.currloc = "" #Hotfix
@@ -64,40 +72,46 @@ class SwatScraper():
         """
         grabs events
         """
-        __id = 0
         while len(self.string) > 0:
             self.readline()
+            print self.curr
             if self.checkLoc(self.curr) == True:
                 loc = self.currloc
                 location = self.curr
             elif self.checkDay(self.curr) == True:
-                masterday = dateformat(self.curr) #Returns formatted date and Day queue (Day1,Day2,Day3)
-                day = masterday[0] #date
-                child = masterday[1] #queue
+                try:
+                    masterday = dateformat(self.curr) #Returns formatted date and Day queue (Day1,Day2,Day3)
+                    day = masterday[0] #date
+                    child = masterday[1] #queue
+                except:
+                    pass
             elif self.checkTime(self.curr) == True:
                 if "Application Deadline" in self.curr:
                     pass
                 else:
                     time_name = stringfix(self.curr) #Returns list of start/end time and name from time string
                     if len(time_name) == 3:
-                        event = {"sorted_time": time_name[2], "name":time_name[1], "start_time":time_name[0], "end_time":" ", "location":location, "lat":locDic[loc][0], "lng":locDic[loc][1], "date":day, "description":"", "count": 0, "message": " people are attending"}
-                        if event in curr_events: #checks too see whether new day is already in the database
-                            pass
+                        try:
+                            event = {"sorted_time": time_name[2], "name":time_name[1], "start_time":time_name[0], "end_time":" ", "location":location, "lat":locDic[loc][0], "lng":locDic[loc][1], "date":day, "description":"", "count": 0, "id": idfixer(day,time_name[1])}
+                        except:
+                            event = {"sorted_time": time_name[2], "name":time_name[1], "start_time":time_name[0], "end_time":" ", "location":"No Location", "lat":locDic["No Location"][0], "lng":locDic["No Location"][1], "date":day, "description":"", "count": 0, "id": idfixer(day,time_name[1])}
+                        #elike = {idfixer(day,time_name[1]):0}
+                        #firebase.post("/likes/", elike)
+                        if dupecheck(event,curr_events) == False:
+                            firebase.post("/events/" + child,event)
                         else:
-                            if dupecheck(event,curr_events) == False:
-                                result = firebase.post("/events/" + child,event)
-                            else:
-                                pass
+                            pass
                     else:
-                        event = {"sorted_time": time_name[3], "name":time_name[2], "start_time":time_name[0], "end_time":time_name[1], "location":location, "lat":locDic[loc][0], "lng":locDic[loc][1], "date":day, "description":"", "count": 0, "message": " people are attending"}
-                        if event in curr_events:
-                            pass
+                        try:
+                            event = {"sorted_time": time_name[3], "name":time_name[2], "start_time":time_name[0], "end_time":time_name[1], "location":location, "lat":locDic[loc][0], "lng":locDic[loc][1], "date":day, "description":"", "count": 0, "id": idfixer(day,time_name[2])}
+                        except:
+                            event = {"sorted_time": time_name[2], "name":time_name[1], "start_time":time_name[0], "end_time":" ", "location":"No Location", "lat":locDic["No Location"][0], "lng":locDic["No Location"][1], "date":day, "description":"", "count": 0, "id": idfixer(day,time_name[1])}
+                        #elike = {idfixer(day,time_name[2]):0}
+                        #firebase.post("/likes/", elike)
+                        if dupecheck(event,curr_events) == False:
+                            firebase.post("/events/" + child,event)
                         else:
-                            if dupecheck(event,curr_events) == False:
-                                result = firebase.post("/events/" + child,event)
-                            else:
-                                pass
-                    __id += 1
+                            pass
             else:
                 pass
 
