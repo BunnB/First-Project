@@ -13,7 +13,7 @@ checks to see if time if current time is
 from firebase import *
 from fixers import *
 from datetime import *
-firebase = firebase.FirebaseApplication('https://swatevents-2341b.firebaseio.com/',None)
+firebase = firebase.FirebaseApplication('*********************',None)
 def eventsNow():
     branch = "now"
     now = datetime.today()
