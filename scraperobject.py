@@ -14,7 +14,7 @@ from firebaseupdater import *
 from locDic import locDic
 from dupecheck import *
 
-firebase = firebase.FirebaseApplication('https://swatevents-2341b.firebaseio.com/',None)
+firebase = firebase.FirebaseApplication('******************',None)
 
 """
 PRE-SCRAPE PROTOCOL
