@@ -55,5 +55,5 @@ def approvedupdate(firebase):
     #if event is within day range, add the event to the specific day, and move the approved event into branch
 
 if __name__ == "__main__":
-    firebase = firebase.FirebaseApplication('https://swatevents-2341b.firebaseio.com/',None)
+    firebase = firebase.FirebaseApplication('*******************',None)
     firebaseupdate(firebase)
