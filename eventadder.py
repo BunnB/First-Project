@@ -15,7 +15,7 @@ from nowevents import checktwelve
 #we only add events in scraper object, and nowevents
 
 def launchGUI():
-    fireref = firebase.FirebaseApplication('https://swatevents-2341b.firebaseio.com/',None)
+    fireref = firebase.FirebaseApplication('******************',None)
     forms = fireref.get('/forms',None)
     for id_key,event in forms.items(): #loops through list of now events
         clone = {}
